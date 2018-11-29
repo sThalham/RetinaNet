@@ -124,6 +124,49 @@ def default_regression_model(num_values, num_anchors, pyramid_feature_size=256, 
     return keras.models.Model(inputs=inputs, outputs=outputs, name=name)
 
 
+def default_pose_regression_model(num_anchors, pyramid_feature_size=256, regression_feature_size=256, name='pose_regression_submodel'):
+    """ Creates the default regression submodel.
+
+    Args
+        num_anchors             : Number of anchors to regress for each feature level.
+        pyramid_feature_size    : The number of filters to expect from the feature pyramid levels.
+        regression_feature_size : The number of filters to use in the layers in the regression submodel.
+        name                    : The name of the submodel.
+
+    Returns
+        A keras.models.Model that predicts regression values for each anchor.
+    """
+    # All new conv layers except the final one in the
+    # RetinaNet (classification) subnets are initialized
+    # with bias b = 0 and a Gaussian weight fill with stddev = 0.01.
+    options = {
+        'kernel_size'        : 3,
+        'strides'            : 2,
+        'padding'            : 'same',
+        'kernel_initializer' : keras.initializers.normal(mean=0.0, stddev=0.01, seed=None),
+        'bias_initializer'   : 'zeros'
+    }
+
+    inputs  = keras.layers.Input(shape=(None, None, pyramid_feature_size))
+    outputs = inputs
+    for i in range(3):
+        outputs = keras.layers.Conv2D(
+            filters=regression_feature_size,
+            activation='relu',
+            name='pyramid_pose_regression_{}'.format(i),
+            **options
+        )(outputs)
+
+    outputs = keras.layers.Dense(num_anchors * 6, activation='relu', name='pyramid_pose_regression_f1')(outputs)
+    outputs = keras.layers.Dense(num_anchors * 6, activation='relu', kernel_regularizer=keras.regularizers.l2(0.01),
+                activity_regularizer=keras.regularizers.l1(0.01), name='pyramid_pose_regression_f2')(outputs)
+
+    #outputs = keras.layers.Conv2D(num_anchors * 6, name='pyramid_pose_regression', **options)(outputs)
+    outputs = keras.layers.Reshape((-1, 6), name='pyramid_pose_regression_reshape')(outputs)
+
+    return keras.models.Model(inputs=inputs, outputs=outputs, name=name)
+
+
 def __create_pyramid_features(C3, C4, C5, feature_size=256):
     """ Creates the FPN layers on top of the backbone features.
 
@@ -176,7 +219,8 @@ def default_submodels(num_classes, num_anchors):
     """
     return [
         ('regression', default_regression_model(4, num_anchors)),
-        ('classification', default_classification_model(num_classes, num_anchors))
+        ('classification', default_classification_model(num_classes, num_anchors)),
+        ('pose_regression', default_pose_regression_model(6, num_anchors))
     ]
 
 
@@ -333,20 +377,24 @@ def retinanet_bbox(
     # we expect the anchors, regression and classification values as first output
     regression     = model.outputs[0]
     classification = model.outputs[1]
+    pose_regression = model.output[2]
 
     # "other" can be any additional output from custom submodels, by default this will be []
-    other = model.outputs[2:]
+    other = model.outputs[3:]
 
     # apply predicted regression to anchors
     boxes = layers.RegressBoxes(name='boxes')([anchors, regression])
     boxes = layers.ClipBoxes(name='clipped_boxes')([model.inputs[0], boxes])
+
+    # apply predicted regression to object pose
+    poses = layers.RegressPose(name='pose')([anchors, pose_regression])
 
     # filter detections (apply NMS / score threshold / select top-k)
     detections = layers.FilterDetections(
         nms                   = nms,
         class_specific_filter = class_specific_filter,
         name                  = 'filtered_detections'
-    )([boxes, classification] + other)
+    )([boxes, classification, poses] + other)
 
     # construct the model
     return keras.models.Model(inputs=model.inputs, outputs=detections, name=name)
