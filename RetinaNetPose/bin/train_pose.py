@@ -107,16 +107,8 @@ def create_models(backbone_retinanet, num_classes, weights, multi_gpu=0, freeze_
         anchor_params = parse_anchor_parameters(config)
         num_anchors   = anchor_params.num_anchors()
 
-    # Keras recommends initialising a multi-gpu model on the CPU to ease weight sharing, and to prevent OOM errors.
-    # optionally wrap in a parallel model
-    if multi_gpu > 1:
-        from keras.utils import multi_gpu_model
-        with tf.device('/cpu:0'):
-            model = model_with_weights(backbone_retinanet(num_classes, num_anchors=num_anchors, modifier=modifier), weights=weights, skip_mismatch=True)
-        training_model = multi_gpu_model(model, gpus=multi_gpu)
-    else:
-        model          = model_with_weights(backbone_retinanet(num_classes, num_anchors=num_anchors, modifier=modifier), weights=weights, skip_mismatch=True)
-        training_model = model
+    model          = model_with_weights(backbone_retinanet(num_classes, num_anchors=num_anchors, modifier=modifier), weights=weights, skip_mismatch=True)
+    training_model = model
 
     # make prediction model
     prediction_model = retinanet_bbox(model=model, anchor_params=anchor_params)
@@ -255,6 +247,7 @@ def create_generators(args, preprocess_image):
             'val2014',
             **common_args
         )
+        train_iterations = len(os.listdir(os.path.join(self.coco_path, 'images/train2017')))
     elif args.dataset_type == 'linemod':
         # import here to prevent unnecessary dependency on cocoapi
         from ..preprocessing.linemod import LineMODGenerator
@@ -271,7 +264,7 @@ def create_generators(args, preprocess_image):
             'test',
             **common_args
         )
-
+        train_iterations = len(os.listdir(os.path.join(self.linemod_path, 'images/train')))
     elif args.dataset_type == 'tless':
         # import here to prevent unnecessary dependency on cocoapi
         from ..preprocessing.tless import TlessGenerator
@@ -288,11 +281,11 @@ def create_generators(args, preprocess_image):
             'test',
             **common_args
         )
-
+        train_iterations = len(os.listdir(os.path.join(self.tless_path, 'images/train')))
     else:
         raise ValueError('Invalid data type received: {}'.format(args.dataset_type))
 
-    return train_generator, validation_generator
+    return train_generator, validation_generator, train_iterations
 
 
 def check_args(parsed_args):
@@ -406,7 +399,7 @@ def main(args=None):
         args.config = read_config_file(args.config)
 
     # create the generators
-    train_generator, validation_generator = create_generators(args, backbone.preprocess_image)
+    train_generator, validation_generator, train_iterations = create_generators(args, backbone.preprocess_image)
 
     # create the model
     if args.snapshot is not None:
@@ -449,7 +442,7 @@ def main(args=None):
     # start training
     training_model.fit_generator(
         generator=train_generator,
-        steps_per_epoch=args.steps,
+        steps_per_epoch=train_iterations,
         epochs=args.epochs,
         verbose=1,
         callbacks=callbacks,
