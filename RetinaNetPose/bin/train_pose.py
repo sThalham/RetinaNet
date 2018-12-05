@@ -247,7 +247,7 @@ def create_generators(args, preprocess_image):
             'val2014',
             **common_args
         )
-        train_iterations = len(os.listdir(os.path.join(self.coco_path, 'images/train2017')))
+        train_iterations = len(os.listdir(os.path.join(args.coco_path, 'images/train2014')))
     elif args.dataset_type == 'linemod':
         # import here to prevent unnecessary dependency on cocoapi
         from ..preprocessing.linemod import LineMODGenerator
@@ -264,7 +264,7 @@ def create_generators(args, preprocess_image):
             'test',
             **common_args
         )
-        train_iterations = len(os.listdir(os.path.join(self.linemod_path, 'images/train')))
+        train_iterations = len(os.listdir(os.path.join(args.linemod_path, 'images/train')))
     elif args.dataset_type == 'tless':
         # import here to prevent unnecessary dependency on cocoapi
         from ..preprocessing.tless import TlessGenerator
@@ -281,7 +281,7 @@ def create_generators(args, preprocess_image):
             'test',
             **common_args
         )
-        train_iterations = len(os.listdir(os.path.join(self.tless_path, 'images/train')))
+        train_iterations = len(os.listdir(os.path.join(args.tless_path, 'images/train')))
     else:
         raise ValueError('Invalid data type received: {}'.format(args.dataset_type))
 
@@ -391,7 +391,7 @@ def main(args=None):
             backbone_retinanet=backbone.retinanet,
             num_classes=train_generator.num_classes(),
             weights=weights,
-            multi_gpu=args.multi_gpu,
+            multi_gpu=0,
             freeze_backbone=args.freeze_backbone,
             config=args.config
         )

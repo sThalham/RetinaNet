@@ -70,7 +70,6 @@ def get_session():
 
 def model_with_weights(model, weights, skip_mismatch):
     """ Load weights for model.
-
     Args
         model         : The model to load weights for.
         weights       : The weights to load.
@@ -83,7 +82,6 @@ def model_with_weights(model, weights, skip_mismatch):
 
 def create_models(backbone_retinanet, num_classes, weights, multi_gpu=0, freeze_backbone=False, config=None):
     """ Creates three models (model, training_model, prediction_model).
-
     Args
         backbone_retinanet : A function to call to create a retinanet model with a given backbone.
         num_classes        : The number of classes to train.
@@ -91,7 +89,6 @@ def create_models(backbone_retinanet, num_classes, weights, multi_gpu=0, freeze_
         multi_gpu          : The number of GPUs to use for training.
         freeze_backbone    : If True, disables learning for the backbone.
         config             : Config parameters, None indicates the default configuration.
-
     Returns
         model            : The base model. This is also the model that is saved in snapshots.
         training_model   : The training model. If multi_gpu=0, this is identical to model.
@@ -109,14 +106,14 @@ def create_models(backbone_retinanet, num_classes, weights, multi_gpu=0, freeze_
 
     # Keras recommends initialising a multi-gpu model on the CPU to ease weight sharing, and to prevent OOM errors.
     # optionally wrap in a parallel model
-    #if multi_gpu > 1:
-    #    from keras.utils import multi_gpu_model
-    #    with tf.device('/cpu:0'):
-    #        model = model_with_weights(backbone_retinanet(num_classes, num_anchors=num_anchors, modifier=modifier), weights=weights, skip_mismatch=True)
-    #    training_model = multi_gpu_model(model, gpus=multi_gpu)
-    #else:
-    model          = model_with_weights(backbone_retinanet(num_classes, num_anchors=num_anchors, modifier=modifier), weights=weights, skip_mismatch=True)
-    training_model = model
+    if multi_gpu > 1:
+        from keras.utils import multi_gpu_model
+        with tf.device('/cpu:0'):
+            model = model_with_weights(backbone_retinanet(num_classes, num_anchors=num_anchors, modifier=modifier), weights=weights, skip_mismatch=True)
+        training_model = multi_gpu_model(model, gpus=multi_gpu)
+    else:
+        model          = model_with_weights(backbone_retinanet(num_classes, num_anchors=num_anchors, modifier=modifier), weights=weights, skip_mismatch=True)
+        training_model = model
 
     # make prediction model
     prediction_model = retinanet_bbox(model=model, anchor_params=anchor_params)
@@ -135,14 +132,12 @@ def create_models(backbone_retinanet, num_classes, weights, multi_gpu=0, freeze_
 
 def create_callbacks(model, training_model, prediction_model, validation_generator, args):
     """ Creates the callbacks to use during training.
-
     Args
         model: The base model.
         training_model: The model that is used for training.
         prediction_model: The model that should be used for validation.
         validation_generator: The generator for creating validation data.
         args: parseargs args object.
-
     Returns:
         A list of callbacks used for training.
     """
@@ -208,7 +203,6 @@ def create_callbacks(model, training_model, prediction_model, validation_generat
 
 def create_generators(args, preprocess_image):
     """ Create generators for training and validation.
-
     Args
         args             : parseargs object containing configuration for generators.
         preprocess_image : Function that preprocesses an image for the network.
@@ -327,10 +321,8 @@ def check_args(parsed_args):
     """ Function to check for inherent contradictions within parsed arguments.
     For example, batch_size < num_gpus
     Intended to raise errors prior to backend initialisation.
-
     Args
         parsed_args: parser.parse_args()
-
     Returns
         parsed_args
     """
@@ -396,9 +388,9 @@ def parse_args(args):
     parser.add_argument('--gpu',              help='Id of the GPU to use (as reported by nvidia-smi).')
     parser.add_argument('--multi-gpu',        help='Number of GPUs to use for parallel processing.', type=int, default=0)
     parser.add_argument('--multi-gpu-force',  help='Extra flag needed to enable (experimental) multi-gpu support.', action='store_true')
-    parser.add_argument('--epochs',           help='Number of epochs to train.', type=int, default=20)
-    parser.add_argument('--steps',            help='length dataset divided by batch-size.', type=int, default =9743)
-    parser.add_argument('--snapshot-path',    help='Path to store snapshots of models during training (defaults to \'./data\')', default='./data')
+    parser.add_argument('--epochs',           help='Number of epochs to train.', type=int, default=50)
+    parser.add_argument('--steps',            help='Number of steps per epoch.', type=int, default=10000)
+    parser.add_argument('--snapshot-path',    help='Path to store snapshots of models during training (defaults to \'./snapshots\')', default='./snapshots')
     parser.add_argument('--tensorboard-dir',  help='Log directory for Tensorboard output', default='./logs')
     parser.add_argument('--no-snapshots',     help='Disable saving snapshots.', dest='snapshots', action='store_false')
     parser.add_argument('--no-evaluation',    help='Disable per epoch evaluation.', dest='evaluation', action='store_false')
@@ -490,4 +482,4 @@ def main(args=None):
 
 
 if __name__ == '__main__':
-    main()
+main()
