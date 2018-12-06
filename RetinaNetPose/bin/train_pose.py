@@ -416,6 +416,8 @@ def main(args=None):
         epochs=args.epochs,
         verbose=1,
         callbacks=callbacks,
+        use_multiprocessing=True,
+        workers=4
     )
 
 
