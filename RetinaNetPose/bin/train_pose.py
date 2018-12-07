@@ -330,9 +330,9 @@ def parse_args(args):
     parser.add_argument('--gpu',              help='Id of the GPU to use (as reported by nvidia-smi).')
     #parser.add_argument('--multi-gpu',        help='Number of GPUs to use for parallel processing.', type=int, default=0)
     #parser.add_argument('--multi-gpu-force',  help='Extra flag needed to enable (experimental) multi-gpu support.', action='store_true')
-    parser.add_argument('--epochs',           help='Number of epochs to train.', type=int, default=20)
+    parser.add_argument('--epochs',           help='Number of epochs to train.', type=int, default=12)
     #parser.add_argument('--steps',            help='Number of steps per epoch.', type=int, default=10000)
-    parser.add_argument('--snapshot-path',    help='Path to store snapshots of models during training (defaults to \'./snapshots\')', default='./snapshots')
+    parser.add_argument('--snapshot-path',    help='Path to store snapshots of models during training (defaults to \'./data\')', default='./data')
     parser.add_argument('--tensorboard-dir',  help='Log directory for Tensorboard output', default='./logs')
     parser.add_argument('--no-snapshots',     help='Disable saving snapshots.', dest='snapshots', action='store_false')
     parser.add_argument('--no-evaluation',    help='Disable per epoch evaluation.', dest='evaluation', action='store_false')
@@ -412,7 +412,7 @@ def main(args=None):
     # start training
     training_model.fit_generator(
         generator=train_generator,
-        steps_per_epoch=train_iterations,
+        steps_per_epoch=120000,
         epochs=args.epochs,
         verbose=1,
         callbacks=callbacks,
