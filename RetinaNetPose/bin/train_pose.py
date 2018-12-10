@@ -250,21 +250,21 @@ def create_generators(args, preprocess_image):
         train_iterations = len(os.listdir(os.path.join(args.coco_path, 'images/train2014')))
     elif args.dataset_type == 'linemod':
         # import here to prevent unnecessary dependency on cocoapi
-        from ..preprocessing.linemod import LineMODGenerator
+        from ..preprocessing.linemod import LinemodGenerator
 
-        train_generator = LineMODGenerator(
+        train_generator = LinemodGenerator(
             args.linemod_path,
-            'train',
+            'train2014',
             transform_generator=transform_generator,
             **common_args
         )
 
-        validation_generator = LineMODGenerator(
+        validation_generator = LinemodGenerator(
             args.linemod_path,
-            'test',
+            'val2014',
             **common_args
         )
-        train_iterations = len(os.listdir(os.path.join(args.linemod_path, 'images/train')))
+        train_iterations = len(os.listdir(os.path.join(args.linemod_path, 'images/train2014')))
     elif args.dataset_type == 'tless':
         # import here to prevent unnecessary dependency on cocoapi
         from ..preprocessing.tless import TlessGenerator
@@ -412,7 +412,7 @@ def main(args=None):
     # start training
     training_model.fit_generator(
         generator=train_generator,
-        steps_per_epoch=120000,
+        steps_per_epoch=10,
         epochs=args.epochs,
         verbose=1,
         callbacks=callbacks,
