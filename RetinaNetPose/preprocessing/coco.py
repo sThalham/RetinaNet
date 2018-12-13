@@ -52,8 +52,6 @@ class CocoGenerator(Generator):
         categories = self.coco.loadCats(self.coco.getCatIds())
         categories.sort(key=lambda x: x['id'])
 
-        print('categories: ', categories)
-
         self.classes             = {}
         self.coco_labels         = {}
         self.coco_labels_inverse = {}
@@ -129,10 +127,8 @@ class CocoGenerator(Generator):
     def load_annotations(self, image_index):
         """ Load annotations for an image_index.
         """
-        print('image_index: ', image_index)
         # get ground truth annotations
         annotations_ids = self.coco.getAnnIds(imgIds=self.image_ids[image_index], iscrowd=False)
-        print('anno: ', annotations_ids)
         annotations     = {'labels': np.empty((0,)), 'bboxes': np.empty((0, 4))}
 
         # some images appear to miss annotations (like image with id 257034)
