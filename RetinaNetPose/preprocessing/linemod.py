@@ -16,10 +16,12 @@ limitations under the License.
 
 from ..preprocessing.generator import Generator
 from ..utils.image import read_image_bgr
+from collections import defaultdict
 
 import os
 import json
 import numpy as np
+import itertools
 
 def _isArrayLike(obj):
     return hasattr(obj, '__iter__') and hasattr(obj, '__len__')
@@ -39,12 +41,22 @@ class LinemodGenerator(Generator):
         self.set_name  = set_name
         self.path      = os.path.join(data_dir, 'annotations', 'instances_' + set_name + '.json')
         with open(self.path, 'r') as js:
-            self.data = json.load(js)
-        self.image_ann = self.data["images"]
-        self.anno_ann = self.data["annotations"]
+            data = json.load(js)
+
+        self.image_ann = data["images"]
+        anno_ann = data["annotations"]
+        cat_ann = data["categories"]
+        self.cats = {}
         self.image_ids = []
-        for ia in self.image_ann:
-            self.image_ids.append(ia["id"])
+        self.imgToAnns, self.catToImgs = defaultdict(list), defaultdict(list)
+
+        for cat in cat_ann:
+            self.cats[cat['id']] = cat
+        for img in self.image_ann:
+            self.image_ids.append(img['id'])  # to correlate indexing to self.image_ann
+        for ann in anno_ann:
+            self.imgToAnns[ann['image_id']].append(ann)
+            self.catToImgs[ann['category_id']].append(ann['image_id'])
 
         self.load_classes()
 
@@ -53,10 +65,15 @@ class LinemodGenerator(Generator):
     def load_classes(self):
         """ Loads the class to label mapping (and inverse) for COCO.
         """
-        # load class names (name -> label)
-        categories = self.data["categories"]
 
-        self.classes             = {}
+        categories = self.cats
+        if _isArrayLike(categories):
+            categories = [categories[id] for id in categories]
+        elif type(categories) == int:
+            categories = [categories[categories]]
+        categories.sort(key=lambda x: x['id'])
+
+        self.classes        = {}
         self.labels         = {}
         self.labels_inverse = {}
         for c in categories:
@@ -135,24 +152,13 @@ class LinemodGenerator(Generator):
         ids = self.image_ids[image_index]
         ids = ids if _isArrayLike(ids) else [ids]
 
-        # change
-        if not len(imgIds) == 0:
-            lists = [self.imgToAnns[imgId] for imgId in imgIds if imgId in self.imgToAnns]
-            anns = list(itertools.chain.from_iterable(lists))
-        else:
-            anns = self.dataset['annotations']
-        # change
-        annotations_ids = [ann['id'] for ann in anns]
+        lists = [self.imgToAnns[imgId] for imgId in ids if imgId in self.imgToAnns]
+        anns = list(itertools.chain.from_iterable(lists))
 
-        print('anno: ', annotations_ids)
+        #annotations_ids = [ann['id'] for ann in anns]
         annotations     = {'labels': np.empty((0,)), 'bboxes': np.empty((0, 4))}
 
-        # some images appear to miss annotations (like image with id 257034)
-        if len(annotations_ids) == 0:
-            return annotations
-
-        # parse annotations
-        for idx, a in enumerate(self.anno_ann):
+        for idx, a in enumerate(anns):
             # some annotations have basically no width / height, skip them
             if a['bbox'][2] < 1 or a['bbox'][3] < 1:
                 continue
