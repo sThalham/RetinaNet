@@ -116,12 +116,13 @@ def create_models(backbone_retinanet, num_classes, weights, multi_gpu=0, freeze_
     # compile model
     training_model.compile(
         loss={
-            'regression'    : losses.smooth_l1(),
-            'classification': losses.focal(),
+            'bbox' : losses.smooth_l1(),
+            'cls': losses.focal(),
+            'pose' : losses.weighted_MSE()
+
         },
         optimizer=keras.optimizers.adam(lr=1e-5, clipnorm=0.001)
     )
-    #'pose'          : losses.weighted_MSE()
 
     return model, training_model, prediction_model
 
@@ -254,17 +255,17 @@ def create_generators(args, preprocess_image):
 
         train_generator = LinemodGenerator(
             args.linemod_path,
-            'train2014',
+            'train',
             transform_generator=transform_generator,
             **common_args
         )
 
         validation_generator = LinemodGenerator(
             args.linemod_path,
-            'val2014',
+            'val',
             **common_args
         )
-        train_iterations = len(os.listdir(os.path.join(args.linemod_path, 'images/train2014')))
+        train_iterations = len(os.listdir(os.path.join(args.linemod_path, 'images/train')))
     elif args.dataset_type == 'tless':
         # import here to prevent unnecessary dependency on cocoapi
         from ..preprocessing.tless import TlessGenerator
@@ -330,7 +331,7 @@ def parse_args(args):
     parser.add_argument('--gpu',              help='Id of the GPU to use (as reported by nvidia-smi).')
     #parser.add_argument('--multi-gpu',        help='Number of GPUs to use for parallel processing.', type=int, default=0)
     #parser.add_argument('--multi-gpu-force',  help='Extra flag needed to enable (experimental) multi-gpu support.', action='store_true')
-    parser.add_argument('--epochs',           help='Number of epochs to train.', type=int, default=1)
+    parser.add_argument('--epochs',           help='Number of epochs to train.', type=int, default=2)
     #parser.add_argument('--steps',            help='Number of steps per epoch.', type=int, default=10000)
     parser.add_argument('--snapshot-path',    help='Path to store snapshots of models during training (defaults to \'./data\')', default='./data')
     parser.add_argument('--tensorboard-dir',  help='Log directory for Tensorboard output', default='./logs')

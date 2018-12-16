@@ -82,11 +82,13 @@ def anchor_targets_bbox(
     for annotations in annotations_group:
         assert('bboxes' in annotations), "Annotations should contain bboxes."
         assert('labels' in annotations), "Annotations should contain labels."
+        assert('poses' in annotations), "Annotations should contain poses"
 
     batch_size = len(image_group)
 
     regression_batch  = np.zeros((batch_size, anchors.shape[0], 4 + 1), dtype=keras.backend.floatx())
     labels_batch      = np.zeros((batch_size, anchors.shape[0], num_classes + 1), dtype=keras.backend.floatx())
+    pose_regression_batch  = np.zeros((batch_size, anchors.shape[0], 7 + 1), dtype=keras.backend.floatx())
 
     # compute labels and regression targets
     for index, (image, annotations) in enumerate(zip(image_group, annotations_group)):
@@ -100,10 +102,17 @@ def anchor_targets_bbox(
             regression_batch[index, ignore_indices, -1]   = -1
             regression_batch[index, positive_indices, -1] = 1
 
+            pose_regression_batch[index, ignore_indices, -1]   = -1
+            pose_regression_batch[index, positive_indices, -1] = 1
+
             # compute target class labels
             labels_batch[index, positive_indices, annotations['labels'][argmax_overlaps_inds[positive_indices]].astype(int)] = 1
 
             regression_batch[index, :, :-1] = bbox_transform(anchors, annotations['bboxes'][argmax_overlaps_inds, :])
+
+            #pose_regression_batch[
+            #    index, positive_indices, annotations['poses'][argmax_overlaps_inds[positive_indices]].astype(int)] = 1
+            pose_regression_batch[index, :, :-1] = pose_transform(anchors, annotations['poses'][argmax_overlaps_inds, :])
 
         # ignore annotations outside of image
         if image.shape:
@@ -112,8 +121,9 @@ def anchor_targets_bbox(
 
             labels_batch[index, indices, -1]     = -1
             regression_batch[index, indices, -1] = -1
+            pose_regression_batch[index, indices, -1] = -1
 
-    return regression_batch, labels_batch
+    return regression_batch, labels_batch, pose_regression_batch
 
 
 def compute_gt_annotations(
@@ -333,6 +343,42 @@ def bbox_transform(anchors, gt_boxes, mean=None, std=None):
     targets_dy2 = (gt_boxes[:, 3] - anchors[:, 3]) / anchor_heights
 
     targets = np.stack((targets_dx1, targets_dy1, targets_dx2, targets_dy2))
+    targets = targets.T
+
+    targets = (targets - mean) / std
+
+    return targets
+
+def pose_transform(anchors, gt_poses, mean=None, std=None):
+    """Compute bounding-box regression targets for an image."""
+
+    if mean is None:
+        mean = np.array([0, 0, 0, 0, 0, 0, 0])
+    if std is None:
+        std = np.array([0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2])
+
+    if isinstance(mean, (list, tuple)):
+        mean = np.array(mean)
+    elif not isinstance(mean, np.ndarray):
+        raise ValueError('Expected mean to be a np.ndarray, list or tuple. Received: {}'.format(type(mean)))
+
+    if isinstance(std, (list, tuple)):
+        std = np.array(std)
+    elif not isinstance(std, np.ndarray):
+        raise ValueError('Expected std to be a np.ndarray, list or tuple. Received: {}'.format(type(std)))
+
+    anchor_widths  = anchors[:, 2] - anchors[:, 0]
+    anchor_heights = anchors[:, 3] - anchors[:, 1]
+
+    targets_x = (gt_poses[:, 0])
+    targets_y = (gt_poses[:, 1])
+    targets_z = (gt_poses[:, 2])
+    targets_qx = (gt_poses[:, 3])
+    targets_qy = (gt_poses[:, 4])
+    targets_qz = (gt_poses[:, 5])
+    targets_qw = (gt_poses[:, 6])
+
+    targets = np.stack((targets_x, targets_y, targets_z, targets_qx, targets_qy, targets_qz, targets_qw))
     targets = targets.T
 
     targets = (targets - mean) / std

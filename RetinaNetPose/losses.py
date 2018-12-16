@@ -138,22 +138,21 @@ def weighted_MSE(alpha=0.7):
             The weighted MSE loss of y_pred w.r.t. y_true.
         """
         #### separate target and state
-        #regression        = y_pred
-        #regression_target = y_true[:, :, :-1]
-        #anchor_state      = y_true[:, :, -1]
+        regression        = y_pred
+        regression_target = y_true[:, :, :-1]
+        anchor_state      = y_true[:, :, -1]
 
         #### filter out "ignore" anchors
-        #indices           = backend.where(keras.backend.equal(anchor_state, 1))
-        #regression        = backend.gather_nd(regression, indices)
-        #regression_target = backend.gather_nd(regression_target, indices)
+        indices           = backend.where(keras.backend.equal(anchor_state, 1))
+        regression        = backend.gather_nd(regression, indices)
+        regression_target = backend.gather_nd(regression_target, indices)
 
         #regression_loss = alpha * keras.backend.sqrt(keras.backend.pow(regression[4:6], 2) - keras.backend.pow(regression_target[4:6], 2)) + (1-alpha) * keras.backend.sqrt(keras.backend.pow(regression[0:4], 2) - keras.backend.pow(regression_target[0:4], 2))
+        regression_loss = keras.losses.mean_squared_error(regression, regression_target)
 
         #### compute the normalizer: the number of positive anchors
-        #normalizer = keras.backend.maximum(1, keras.backend.shape(indices)[0])
-        #normalizer = keras.backend.cast(normalizer, dtype=keras.backend.floatx())
-        #return keras.backend.sum(regression_loss) / normalizer
-
-        return keras.losses.mean_squared_error(y_true, y_pred)
+        normalizer = keras.backend.maximum(1, keras.backend.shape(indices)[0])
+        normalizer = keras.backend.cast(normalizer, dtype=keras.backend.floatx())
+        return keras.backend.sum(regression_loss) / normalizer
 
     return _wMSE
