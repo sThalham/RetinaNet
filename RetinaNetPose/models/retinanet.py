@@ -166,6 +166,7 @@ def default_pose_regression_model(num_values, num_anchors, pyramid_feature_size=
     if keras.backend.image_data_format() == 'channels_first':
         outputs = keras.layers.Permute((2, 3, 1), name='pyramid_regression_permute')(outputs)
     outputs = keras.layers.Reshape((-1, num_values), name='pyramid_pose_regression_reshape')(outputs)
+    print('output_shape: ', outputs.shape)
 
     return keras.models.Model(inputs=inputs, outputs=outputs, name=name)
 
@@ -388,15 +389,14 @@ def retinanet_bbox(
     # apply predicted regression to anchors
     boxes = layers.RegressBoxes(name='boxes')([anchors, regression])
     boxes = layers.ClipBoxes(name='clipped_boxes')([model.inputs[0], boxes])
-
-    poses = layers.RegressBoxes(name='poses')([anchors, pose_regression])
+    poses = layers.RegressPoses(name='poses')([anchors, pose_regression])
 
     # filter detections (apply NMS / score threshold / select top-k)
     detections = layers.FilterDetections(
         nms                   = nms,
         class_specific_filter = class_specific_filter,
         name                  = 'filtered_detections'
-    )([boxes, classification, poses] + other)
+    )([boxes, poses, classification] + other)
 
     # construct the model
     return keras.models.Model(inputs=model.inputs, outputs=detections, name=name)

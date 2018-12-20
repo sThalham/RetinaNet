@@ -75,6 +75,9 @@ def anchor_targets_bbox(
         regression_batch: batch that contains bounding-box regression targets for an image & anchor states (np.array of shape (batch_size, N, 4 + 1),
                       where N is the number of anchors for an image, the first 4 columns define regression targets for (x1, y1, x2, y2) and the
                       last column defines anchor states (-1 for ignore, 0 for bg, 1 for fg).
+        pose_regression_batch: batch that contains pose regression targets for an image & anchor states (np.array of shape (batch_size, N, 7 + 1),
+                      where N is the number of anchors for an image, the first 5 columns define regression targets for (x, y, z, rx, ry, rz, rw) and the
+                      last column defines anchor states (-1 for ignore, 0 for bg, 1 for fg).
     """
 
     assert(len(image_group) == len(annotations_group)), "The length of the images and annotations need to be equal."
@@ -282,6 +285,80 @@ def shift(shape, stride, anchors):
     return all_anchors
 
 
+def pose_anchors_for_shape(
+    image_shape,
+    pyramid_levels=None,
+    anchor_params=None,
+    shapes_callback=None,
+):
+    """ Generators anchors for a given shape.
+
+    Args
+        image_shape: The shape of the image.
+        pyramid_levels: List of ints representing which pyramids to use (defaults to [3, 4, 5, 6, 7]).
+        anchor_params: Struct containing anchor parameters. If None, default values are used.
+        shapes_callback: Function to call for getting the shape of the image at different pyramid levels.
+
+    Returns
+        np.array of shape (N, 4) containing the (x1, y1, x2, y2) coordinates for the anchors.
+    """
+
+    if pyramid_levels is None:
+        pyramid_levels = [3, 4, 5, 6, 7]
+
+    if anchor_params is None:
+        anchor_params = AnchorParameters.default
+
+    if shapes_callback is None:
+        shapes_callback = guess_shapes
+    image_shapes = shapes_callback(image_shape, pyramid_levels)
+
+    # compute anchors over all pyramid levels
+    all_anchors = np.zeros((0, 4))
+    for idx, p in enumerate(pyramid_levels):
+        anchors = generate_pose_anchors(
+            base_size=anchor_params.sizes[idx],
+            ratios=anchor_params.ratios,
+            scales=anchor_params.scales
+        )
+        shifted_anchors = shift_pose(image_shapes[idx], anchor_params.strides[idx], anchors)
+        all_anchors     = np.append(all_anchors, shifted_anchors, axis=0)
+
+    return all_anchors
+
+
+def shift_pose(shape, stride, anchors):
+    """ Produce shifted anchors based on shape of the map and stride size.
+
+    Args
+        shape  : Shape to shift the anchors over.
+        stride : Stride to shift the anchors with over the shape.
+        anchors: The anchors to apply at each location.
+    """
+
+    # create a grid starting from half stride from the top left corner
+    shift_x = (np.arange(0, shape[1]) + 0.5) * stride
+    shift_y = (np.arange(0, shape[0]) + 0.5) * stride
+
+    shift_x, shift_y = np.meshgrid(shift_x, shift_y)
+
+    shifts = np.vstack((
+        shift_x.ravel(), shift_y.ravel(),
+        shift_x.ravel(), shift_y.ravel()
+    )).transpose()
+
+    # add A anchors (1, A, 4) to
+    # cell K shifts (K, 1, 4) to get
+    # shift anchors (K, A, 4)
+    # reshape to (K*A, 4) shifted anchors
+    A = anchors.shape[0]
+    K = shifts.shape[0]
+    all_anchors = (anchors.reshape((1, A, 7)) + shifts.reshape((1, K, 7)).transpose((1, 0, 2)))
+    all_anchors = all_anchors.reshape((K * A, 7))
+
+    return all_anchors
+
+
 def generate_anchors(base_size=16, ratios=None, scales=None):
     """
     Generate anchor (reference) windows by enumerating aspect ratios X
@@ -312,6 +389,40 @@ def generate_anchors(base_size=16, ratios=None, scales=None):
     # transform from (x_ctr, y_ctr, w, h) -> (x1, y1, x2, y2)
     anchors[:, 0::2] -= np.tile(anchors[:, 2] * 0.5, (2, 1)).T
     anchors[:, 1::2] -= np.tile(anchors[:, 3] * 0.5, (2, 1)).T
+
+    return anchors
+
+
+def generate_pose_anchors(base_size=16, ratios=None, scales=None):
+    """
+    Generate anchor (reference) windows by enumerating aspect ratios X
+    scales w.r.t. a reference window.
+    """
+
+    if ratios is None:
+        ratios = AnchorParameters.default.ratios
+
+    if scales is None:
+        scales = AnchorParameters.default.scales
+
+    num_anchors = len(ratios) * len(scales)
+
+    # initialize output anchors
+    anchors = np.zeros((num_anchors, 7))
+
+    # scale base_size
+    #anchors[:, 2:] = base_size * np.tile(scales, (2, len(ratios))).T
+
+    # compute areas of anchors
+    #areas = anchors[:, 2] * anchors[:, 3]
+
+    # correct for ratios
+    #anchors[:, 2] = np.sqrt(areas / np.repeat(ratios, len(scales)))
+    #anchors[:, 3] = anchors[:, 2] * np.repeat(ratios, len(scales))
+
+    # transform from (x_ctr, y_ctr, w, h) -> (x1, y1, x2, y2)
+    #anchors[:, 0::2] -= np.tile(anchors[:, 2] * 0.5, (2, 1)).T
+    #anchors[:, 1::2] -= np.tile(anchors[:, 3] * 0.5, (2, 1)).T
 
     return anchors
 
@@ -349,8 +460,9 @@ def bbox_transform(anchors, gt_boxes, mean=None, std=None):
 
     return targets
 
+
 def pose_transform(anchors, gt_poses, mean=None, std=None):
-    """Compute bounding-box regression targets for an image."""
+    """Compute pose regression targets for an image."""
 
     if mean is None:
         mean = np.array([0, 0, 0, 0, 0, 0, 0])
@@ -373,12 +485,12 @@ def pose_transform(anchors, gt_poses, mean=None, std=None):
     targets_x = (gt_poses[:, 0])
     targets_y = (gt_poses[:, 1])
     targets_z = (gt_poses[:, 2])
-    targets_qx = (gt_poses[:, 3])
-    targets_qy = (gt_poses[:, 4])
-    targets_qz = (gt_poses[:, 5])
-    targets_qw = (gt_poses[:, 6])
+    targets_rx = (gt_poses[:, 3])
+    targets_ry = (gt_poses[:, 4])
+    targets_rz = (gt_poses[:, 5])
+    targets_rw = (gt_poses[:, 6])
 
-    targets = np.stack((targets_x, targets_y, targets_z, targets_qx, targets_qy, targets_qz, targets_qw))
+    targets = np.stack((targets_x, targets_y, targets_z, targets_rx, targets_ry, targets_rz, targets_rw))
     targets = targets.T
 
     targets = (targets - mean) / std

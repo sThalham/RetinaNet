@@ -39,9 +39,6 @@ from ..callbacks import RedirectModel
 from ..callbacks.eval import Evaluate
 from ..models.retinanet import retinanet_bbox
 from ..preprocessing.csv_generator import CSVGenerator
-from ..preprocessing.kitti import KittiGenerator
-from ..preprocessing.open_images import OpenImagesGenerator
-from ..preprocessing.pascal_voc import PascalVocGenerator
 from ..utils.anchors import make_shapes_callback
 from ..utils.config import read_config_file, parse_anchor_parameters
 from ..utils.keras_version import check_keras_version
@@ -226,8 +223,8 @@ def create_generators(args, preprocess_image):
             max_shear=0.1,
             min_scaling=(0.9, 0.9),
             max_scaling=(1.1, 1.1),
-            flip_x_chance=0.5,
-            flip_y_chance=0.5,
+            flip_x_chance=0.0,  # flipping image might lead to inconsistencies in regression (test that at some point)
+            flip_y_chance=0.0,  # flipping image might lead to inconsistencies in regression (test that at some point)
         )
     else:
         transform_generator = random_transform_generator(flip_x_chance=0.5)

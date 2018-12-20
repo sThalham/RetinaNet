@@ -139,6 +139,7 @@ class Generator(object):
             assert(isinstance(annotations, dict)), '\'load_annotations\' should return a list of dictionaries, received: {}'.format(type(annotations))
             assert('labels' in annotations), '\'load_annotations\' should return a list of dictionaries that contain \'labels\' and \'bboxes\'.'
             assert('bboxes' in annotations), '\'load_annotations\' should return a list of dictionaries that contain \'labels\' and \'bboxes\'.'
+            assert ('poses' in annotations), '\'load_annotations\' should return a list of dictionaries that contain \'labels\' and \'bboxes\'.'
 
         return annotations_group
 
@@ -189,6 +190,15 @@ class Generator(object):
             annotations['bboxes'] = annotations['bboxes'].copy()
             for index in range(annotations['bboxes'].shape[0]):
                 annotations['bboxes'][index, :] = transform_aabb(transform, annotations['bboxes'][index, :])
+
+            # Transform the poses
+            # relevant? Since translation and rotation is in real life shouldn't the regression be estimated from ...
+            #  the scale of features/shape, e.g. no scaling be applied
+            '''
+            annotations['poses'] = annotations['poses'].copy()
+            for index in range(annotations['poses'].shape[0]):
+                annotations['poses'][index, :] = transform_pose(transform, annotations['poses'][index, :])
+            '''
 
         return image, annotations
 

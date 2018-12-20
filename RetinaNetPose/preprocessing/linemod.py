@@ -132,7 +132,11 @@ class LinemodGenerator(Generator):
 
     def image_aspect_ratio(self, image_index):
 
-        return 640 / 480
+        if _isArrayLike(image_index):
+            image = (self.image_ann[id] for id in image_index)
+        elif type(image_index) == int:
+            image = self.image_ann[image_index]
+        return float(image['width']) / float(image['height'])
 
     def load_image(self, image_index):
         """ Load an image at the image_index.

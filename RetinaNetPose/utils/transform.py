@@ -54,6 +54,36 @@ def transform_aabb(transform, aabb):
     return [min_corner[0], min_corner[1], max_corner[0], max_corner[1]]
 
 
+def transform_pose(transform, pose):
+    """ Apply a transformation to an axis aligned bounding box.
+
+    The result is a new AABB in the same coordinate system as the original AABB.
+    The new AABB contains all corner points of the original AABB after applying the given transformation.
+
+    Args
+        transform: The transformation to apply.
+        x1:        The minimum x value of the AABB.
+        y1:        The minimum y value of the AABB.
+        x2:        The maximum x value of the AABB.
+        y2:        The maximum y value of the AABB.
+    Returns
+        The new AABB as tuple (x1, y1, x2, y2)
+    """
+    x, y, z, rx, ry, rz, rw = pose
+    # Transform all 4 corners of the AABB.
+    points = transform.dot([
+        [x1, x2, x1, x2],
+        [y1, y2, y2, y1],
+        [1,  1,  1,  1 ],
+    ])
+
+    # Extract the min and max corners again.
+    min_corner = points.min(axis=1)
+    max_corner = points.max(axis=1)
+
+    return [min_corner[0], min_corner[1], max_corner[0], max_corner[1]]
+
+
 def _random_vector(min, max, prng=DEFAULT_PRNG):
     """ Construct a random vector between min and max.
     Args

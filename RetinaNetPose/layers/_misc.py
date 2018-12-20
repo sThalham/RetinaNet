@@ -186,7 +186,7 @@ class ClipBoxes(keras.layers.Layer):
         return input_shape[1]
 
 
-class RegressPose(keras.layers.Layer):
+class RegressPoses(keras.layers.Layer):
     """ Keras layer for applying pose-regression values to anchors.
     """
 
@@ -198,9 +198,9 @@ class RegressPose(keras.layers.Layer):
             std: The standard value of the regression values which was used for normalization.
         """
         if mean is None:
-            mean = np.array([0, 0, 0, 0])
+            mean = np.array([0, 0, 0, 0, 0, 0, 0])
         if std is None:
-            std = np.array([0.2, 0.2, 0.2, 0.2])
+            std = np.array([0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2])
 
         if isinstance(mean, (list, tuple)):
             mean = np.array(mean)
@@ -214,19 +214,17 @@ class RegressPose(keras.layers.Layer):
 
         self.mean = mean
         self.std  = std
-        super(RegressPose, self).__init__(*args, **kwargs)
+        super(RegressPoses, self).__init__(*args, **kwargs)
 
     def call(self, inputs, **kwargs):
         anchors, regression = inputs
-        # todo: implement Pose normalization, similar to box_transform_inv
-        #return backend.bbox_transform_inv(anchors, regression, mean=self.mean, std=self.std)
-        return regression
+        return backend.pose_transform_inv(anchors, regression, mean=self.mean, std=self.std)
 
     def compute_output_shape(self, input_shape):
         return input_shape[0]
 
     def get_config(self):
-        config = super(RegressBoxes, self).get_config()
+        config = super(RegressPose, self).get_config()
         config.update({
             'mean': self.mean.tolist(),
             'std' : self.std.tolist(),
