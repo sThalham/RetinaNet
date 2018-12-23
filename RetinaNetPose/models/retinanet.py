@@ -19,6 +19,7 @@ from .. import initializers
 from .. import layers
 from ..utils.anchors import AnchorParameters
 from . import assert_training_model
+import sys
 
 
 def default_classification_model(
@@ -166,7 +167,6 @@ def default_pose_regression_model(num_values, num_anchors, pyramid_feature_size=
     if keras.backend.image_data_format() == 'channels_first':
         outputs = keras.layers.Permute((2, 3, 1), name='pyramid_regression_permute')(outputs)
     outputs = keras.layers.Reshape((-1, num_values), name='pyramid_pose_regression_reshape')(outputs)
-    print('output_shape: ', outputs.shape)
 
     return keras.models.Model(inputs=inputs, outputs=outputs, name=name)
 
@@ -223,8 +223,8 @@ def default_submodels(num_classes, num_anchors):
     """
     return [
         ('bbox', default_regression_model(4, num_anchors)),
-        ('cls', default_classification_model(num_classes, num_anchors)),
-        ('pose', default_pose_regression_model(7, num_anchors))
+        ('pose', default_pose_regression_model(7, num_anchors)),
+        ('cls', default_classification_model(num_classes, num_anchors))
     ]
 
 
@@ -380,8 +380,8 @@ def retinanet_bbox(
 
     # we expect the anchors, regression and classification values as first output
     regression     = model.outputs[0]
-    classification = model.outputs[1]
-    pose_regression = model.outputs[2]
+    pose_regression = model.outputs[1]
+    classification = model.outputs[2]
 
     # "other" can be any additional output from custom submodels, by default this will be []
     other = model.outputs[3:]

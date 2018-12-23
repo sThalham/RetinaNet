@@ -20,8 +20,8 @@ from .. import backend
 
 def filter_detections(
     boxes,
-    classification,
     poses,
+    classification,
     other                 = [],
     class_specific_filter = True,
     nms                   = True,
@@ -155,21 +155,21 @@ class FilterDetections(keras.layers.Layer):
             inputs : List of [boxes, classification, other[0], other[1], ...] tensors.
         """
         boxes          = inputs[0]
-        classification = inputs[1]
-        poses          = inputs[2]
+        poses = inputs[1]
+        classification = inputs[2]
         other          = inputs[3:]
 
         # wrap nms with our parameters
         def _filter_detections(args):
             boxes          = args[0]
-            classification = args[1]
-            poses          = args[2]
+            poses = args[1]
+            classification = args[2]
             other          = args[3]
 
             return filter_detections(
                 boxes,
-                classification,
                 poses,
+                classification,
                 other,
                 nms                   = self.nms,
                 class_specific_filter = self.class_specific_filter,
