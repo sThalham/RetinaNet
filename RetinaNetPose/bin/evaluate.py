@@ -49,7 +49,7 @@ def create_generator(args):
     """
     if args.dataset_type == 'coco':
         # import here to prevent unnecessary dependency on cocoapi
-        from ..preprocessing.coco import CocoGenerator
+        from ..preprocessing.coco import CocoGenera
 
         validation_generator = CocoGenerator(
             args.coco_path,

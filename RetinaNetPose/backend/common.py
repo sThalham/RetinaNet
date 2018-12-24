@@ -73,13 +73,13 @@ def pose_transform_inv(poses, deltas, mean=None, std=None):
     if std is None:
         std = [0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2]
 
-    x = deltas[:, :, 0]
-    y = deltas[:, :, 1]
-    z = deltas[:, :, 2]
-    rx = deltas[:, :, 3]
-    ry = deltas[:, :, 4]
-    rz = deltas[:, :, 5]
-    rw = deltas[:, :, 6]
+    x = deltas[:, :, 0] * std[0] + mean[0]
+    y = deltas[:, :, 1] * std[1] + mean[1]
+    z = deltas[:, :, 2] * std[2] + mean[2]
+    rx = deltas[:, :, 3] * std[3] + mean[3]
+    ry = deltas[:, :, 4] * std[4] + mean[4]
+    rz = deltas[:, :, 5] * std[5] + mean[5]
+    rw = deltas[:, :, 6] * std[6] + mean[6]
 
     pred_pose = keras.backend.stack([x, y, z, rx, ry, rz, rw], axis=2)
 

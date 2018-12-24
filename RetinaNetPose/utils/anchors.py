@@ -482,7 +482,7 @@ def pose_transform(anchors, gt_poses, mean=None, std=None):
     anchor_widths  = anchors[:, 2] - anchors[:, 0]
     anchor_heights = anchors[:, 3] - anchors[:, 1]
 
-    targets_x = (gt_poses[:, 0])
+    targets_x = (gt_poses[:, 0]) * std[]
     targets_y = (gt_poses[:, 1])
     targets_z = (gt_poses[:, 2])
     targets_rx = (gt_poses[:, 3])

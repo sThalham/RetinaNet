@@ -26,8 +26,8 @@ import tensorflow as tf
 # Allow relative imports when being executed as script.
 if __name__ == "__main__" and __package__ is None:
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
-    import keras_retinanet.bin  # noqa: F401
-    __package__ = "keras_retinanet.bin"
+    import RetinaNetPose.bin  # noqa: F401
+    __package__ = "RetinaNetPose.bin"
 
 # Change these to absolute imports if you copy this script outside the keras_retinanet package.
 from .. import models
@@ -72,7 +72,7 @@ def main(args=None):
             anchor_parameters = parse_anchor_parameters(args.config)
 
     # load the model
-    model = models.load_model(args.model_in, backbone_name=args.backbone)
+    model = models.load_model(args.model_in, backbone_name=args.backbone, convert=True)
 
     # check if this is indeed a training model
     models.check_training_model(model)
