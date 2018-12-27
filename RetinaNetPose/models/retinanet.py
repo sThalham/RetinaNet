@@ -156,13 +156,13 @@ def default_pose_regression_model(num_values, num_anchors, pyramid_feature_size=
     for i in range(3):
         outputs = keras.layers.Conv2D(
             filters=regression_feature_size,
-            activation='relu',
+            activation='tanh',
             name='pyramid_pose_regression_{}'.format(i),
             **options
         )(outputs)
 
-    outputs = keras.layers.Dense(num_anchors * num_values, activation='relu', name='pyramid_pose_regression_f1')(outputs)
-    outputs = keras.layers.Dense(num_anchors * num_values, activation='relu', kernel_regularizer=keras.regularizers.l2(0.01),
+    outputs = keras.layers.Dense(num_anchors * num_values, activation='tanh', name='pyramid_pose_regression_f1')(outputs)
+    outputs = keras.layers.Dense(num_anchors * num_values, activation='tanh', kernel_regularizer=keras.regularizers.l2(0.01),
                 activity_regularizer=keras.regularizers.l1(0.01), name='pyramid_pose_regression_f2')(outputs)
     if keras.backend.image_data_format() == 'channels_first':
         outputs = keras.layers.Permute((2, 3, 1), name='pyramid_regression_permute')(outputs)
@@ -363,7 +363,6 @@ def retinanet_bbox(
         ]
         ```
     """
-
     # if no anchor parameters are passed, use default values
     if anchor_params is None:
         anchor_params = AnchorParameters.default

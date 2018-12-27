@@ -82,6 +82,7 @@ def pose_transform_inv(poses, deltas, mean=None, std=None):
     rw = deltas[:, :, 6] * std[6] + mean[6]
 
     pred_pose = keras.backend.stack([x, y, z, rx, ry, rz, rw], axis=2)
+    print('pred_poses: ', pred_pose)
 
     return pred_pose
 

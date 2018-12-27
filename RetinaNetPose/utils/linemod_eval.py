@@ -45,6 +45,10 @@ def evaluate_linemod(generator, model, threshold=0.05):
 
         # run network
         boxes, poses, scores, labels = model.predict_on_batch(np.expand_dims(image, axis=0))
+        #print('boxes: ', boxes)
+        #print('poses: ', poses)
+        #print('scores: ', scores)
+        #print('labels: ', labels)
 
         # correct boxes for image scale
         boxes /= scale
@@ -62,7 +66,7 @@ def evaluate_linemod(generator, model, threshold=0.05):
             # append detection for each positively labeled class
             image_result = {
                 'image_id'    : generator.image_ids[index],
-                'category_id' : generator.label_to_coco_label(label),
+                'category_id' : generator.label_to_inv_label(label),
                 'score'       : float(score),
                 'bbox'        : box.tolist(),
                 'pose'        : pose.tolist(),

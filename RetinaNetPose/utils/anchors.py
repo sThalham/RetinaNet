@@ -467,7 +467,7 @@ def pose_transform(anchors, gt_poses, mean=None, std=None):
     if mean is None:
         mean = np.array([0, 0, 0, 0, 0, 0, 0])
     if std is None:
-        std = np.array([0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2])
+        std = np.array([1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
 
     if isinstance(mean, (list, tuple)):
         mean = np.array(mean)
@@ -494,5 +494,6 @@ def pose_transform(anchors, gt_poses, mean=None, std=None):
     targets = targets.T
 
     targets = (targets - mean) / std
+    #print('pose_target::anchors.py: ', targets)
 
     return targets
