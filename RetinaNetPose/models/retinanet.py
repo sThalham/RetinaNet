@@ -223,7 +223,7 @@ def default_submodels(num_classes, num_anchors):
     """
     return [
         ('bbox', default_regression_model(4, num_anchors)),
-        ('pose', default_pose_regression_model(7, num_anchors)),
+        ('pose', default_pose_regression_model(4, num_anchors)),
         ('cls', default_classification_model(num_classes, num_anchors))
     ]
 

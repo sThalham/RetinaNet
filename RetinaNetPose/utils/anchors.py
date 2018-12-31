@@ -91,7 +91,7 @@ def anchor_targets_bbox(
 
     regression_batch  = np.zeros((batch_size, anchors.shape[0], 4 + 1), dtype=keras.backend.floatx())
     labels_batch      = np.zeros((batch_size, anchors.shape[0], num_classes + 1), dtype=keras.backend.floatx())
-    pose_regression_batch  = np.zeros((batch_size, anchors.shape[0], 7 + 1), dtype=keras.backend.floatx())
+    pose_regression_batch  = np.zeros((batch_size, anchors.shape[0], 4 + 1), dtype=keras.backend.floatx())
 
     # compute labels and regression targets
     for index, (image, annotations) in enumerate(zip(image_group, annotations_group)):
@@ -465,9 +465,9 @@ def pose_transform(anchors, gt_poses, mean=None, std=None):
     """Compute pose regression targets for an image."""
 
     if mean is None:
-        mean = np.array([0, 0, 0, 0, 0, 0, 0])
+        mean = np.array([0, 0, 0, 0])
     if std is None:
-        std = np.array([1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
+        std = np.array([1.0, 1.0, 1.0, 1.0])
 
     if isinstance(mean, (list, tuple)):
         mean = np.array(mean)
@@ -482,15 +482,16 @@ def pose_transform(anchors, gt_poses, mean=None, std=None):
     anchor_widths  = anchors[:, 2] - anchors[:, 0]
     anchor_heights = anchors[:, 3] - anchors[:, 1]
 
-    targets_x = (gt_poses[:, 0])
-    targets_y = (gt_poses[:, 1])
-    targets_z = (gt_poses[:, 2])
+    #targets_x = (gt_poses[:, 0])
+    #targets_y = (gt_poses[:, 1])
+    #targets_z = (gt_poses[:, 2])
     targets_rx = (gt_poses[:, 3])
     targets_ry = (gt_poses[:, 4])
     targets_rz = (gt_poses[:, 5])
     targets_rw = (gt_poses[:, 6])
 
-    targets = np.stack((targets_x, targets_y, targets_z, targets_rx, targets_ry, targets_rz, targets_rw))
+    #targets = np.stack((targets_x, targets_y, targets_z, targets_rx, targets_ry, targets_rz, targets_rw))
+    targets = np.stack((targets_rx, targets_ry, targets_rz, targets_rw))
     targets = targets.T
 
     targets = (targets - mean) / std

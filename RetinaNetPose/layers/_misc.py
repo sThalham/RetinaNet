@@ -198,9 +198,9 @@ class RegressPoses(keras.layers.Layer):
             std: The standard value of the regression values which was used for normalization.
         """
         if mean is None:
-            mean = np.array([0, 0, 0, 0, 0, 0, 0])
+            mean = np.array([0, 0, 0, 0])
         if std is None:
-            std = np.array([1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
+            std = np.array([1.0, 1.0, 1.0, 1.0])
 
         if isinstance(mean, (list, tuple)):
             mean = np.array(mean)
