@@ -322,6 +322,5 @@ def pose_transform(anchors, gt_poses, mean=None, std=None):
     targets = targets.T
 
     targets = (targets - mean) / std
-    print('targets: ', targets)
 
     return targets
