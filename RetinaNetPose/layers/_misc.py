@@ -22,34 +22,25 @@ import numpy as np
 
 
 class Anchors(keras.layers.Layer):
-    """ Keras layer for generating achors for a given shape.
-    """
 
     def __init__(self, size, stride, ratios=None, scales=None, *args, **kwargs):
-        """ Initializer for an Anchors layer.
 
-        Args
-            size: The base size of the anchors to generate.
-            stride: The stride of the anchors to generate.
-            ratios: The ratios of the anchors to generate (defaults to AnchorParameters.default.ratios).
-            scales: The scales of the anchors to generate (defaults to AnchorParameters.default.scales).
-        """
         self.size   = size
         self.stride = stride
         self.ratios = ratios
         self.scales = scales
 
         if ratios is None:
-            self.ratios  = utils_anchors.AnchorParameters.default.ratios
+            self.ratios = utils_anchors.AnchorParameters.default.ratios
         elif isinstance(ratios, list):
-            self.ratios  = np.array(ratios)
+            self.ratios = np.array(ratios)
         if scales is None:
-            self.scales  = utils_anchors.AnchorParameters.default.scales
+            self.scales = utils_anchors.AnchorParameters.default.scales
         elif isinstance(scales, list):
-            self.scales  = np.array(scales)
+            self.scales = np.array(scales)
 
         self.num_anchors = len(ratios) * len(scales)
-        self.anchors     = keras.backend.variable(utils_anchors.generate_anchors(
+        self.anchors = keras.backend.variable(utils_anchors.generate_anchors(
             base_size=size,
             ratios=ratios,
             scales=scales,
@@ -61,7 +52,6 @@ class Anchors(keras.layers.Layer):
         features = inputs
         features_shape = keras.backend.shape(features)
 
-        # generate proposals from bbox deltas and shifted anchors
         if keras.backend.image_data_format() == 'channels_first':
             anchors = backend.shift(features_shape[2:4], self.stride, self.anchors)
         else:
@@ -77,25 +67,23 @@ class Anchors(keras.layers.Layer):
             else:
                 total = np.prod(input_shape[1:3]) * self.num_anchors
 
-            return (input_shape[0], total, 4)
+            return input_shape[0], total, 4
         else:
-            return (input_shape[0], None, 4)
+            return input_shape[0], None, 4
 
     def get_config(self):
         config = super(Anchors, self).get_config()
         config.update({
-            'size'   : self.size,
-            'stride' : self.stride,
-            'ratios' : self.ratios.tolist(),
-            'scales' : self.scales.tolist(),
+            'size': self.size,
+            'stride': self.stride,
+            'ratios': self.ratios.tolist(),
+            'scales': self.scales.tolist(),
         })
 
         return config
 
 
 class UpsampleLike(keras.layers.Layer):
-    """ Keras layer for upsampling a Tensor to be the same shape as another Tensor.
-    """
 
     def call(self, inputs, **kwargs):
         source, target = inputs
@@ -116,16 +104,8 @@ class UpsampleLike(keras.layers.Layer):
 
 
 class RegressBoxes(keras.layers.Layer):
-    """ Keras layer for applying regression values to boxes.
-    """
 
     def __init__(self, mean=None, std=None, *args, **kwargs):
-        """ Initializer for the RegressBoxes layer.
-
-        Args
-            mean: The mean value of the regression values which was used for normalization.
-            std: The standard value of the regression values which was used for normalization.
-        """
         if mean is None:
             mean = np.array([0, 0, 0, 0])
         if std is None:
@@ -156,25 +136,23 @@ class RegressBoxes(keras.layers.Layer):
         config = super(RegressBoxes, self).get_config()
         config.update({
             'mean': self.mean.tolist(),
-            'std' : self.std.tolist(),
+            'std': self.std.tolist(),
         })
 
         return config
 
 
 class ClipBoxes(keras.layers.Layer):
-    """ Keras layer to clip box values to lie inside a given shape.
-    """
 
     def call(self, inputs, **kwargs):
         image, boxes = inputs
         shape = keras.backend.cast(keras.backend.shape(image), keras.backend.floatx())
         if keras.backend.image_data_format() == 'channels_first':
             height = shape[2]
-            width  = shape[3]
+            width = shape[3]
         else:
             height = shape[1]
-            width  = shape[2]
+            width = shape[2]
         x1 = backend.clip_by_value(boxes[:, :, 0], 0, width)
         y1 = backend.clip_by_value(boxes[:, :, 1], 0, height)
         x2 = backend.clip_by_value(boxes[:, :, 2], 0, width)
@@ -187,20 +165,19 @@ class ClipBoxes(keras.layers.Layer):
 
 
 class RegressPoses(keras.layers.Layer):
-    """ Keras layer for applying pose-regression values to anchors.
-    """
 
     def __init__(self, mean=None, std=None, *args, **kwargs):
-        """ Initializer for the RegressBoxes layer.
+        # tanh unit quaternion without normalization
+        # if mean is None:
+        #    mean = [0.0, 0.0, 0.0, 0.0]
+        # if std is None:
+        #    std = [1.0, 1.0, 1.0, 1.0]
 
-        Args
-            mean: The mean value of the regression values which was used for normalization.
-            std: The standard value of the regression values which was used for normalization.
-        """
+        # relu unit quaternion [0, 1]
         if mean is None:
-            mean = np.array([0, 0, 0, 0])
+            mean = [-1.0, -1.0, -1.0, -1.0]
         if std is None:
-            std = np.array([1.0, 1.0, 1.0, 1.0])
+            std = [2.0, 2.0, 2.0, 2.0]
 
         if isinstance(mean, (list, tuple)):
             mean = np.array(mean)
@@ -217,8 +194,8 @@ class RegressPoses(keras.layers.Layer):
         super(RegressPoses, self).__init__(*args, **kwargs)
 
     def call(self, inputs, **kwargs):
-        anchors, regression = inputs
-        return backend.pose_transform_inv(anchors, regression, mean=self.mean, std=self.std)
+        poses, regression = inputs
+        return backend.pose_transform_inv(poses, regression, mean=self.mean, std=self.std)
 
     def compute_output_shape(self, input_shape):
         return input_shape[0]
@@ -227,7 +204,7 @@ class RegressPoses(keras.layers.Layer):
         config = super(RegressPose, self).get_config()
         config.update({
             'mean': self.mean.tolist(),
-            'std' : self.std.tolist(),
+            'std': self.std.tolist(),
         })
 
         return config

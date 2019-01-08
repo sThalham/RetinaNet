@@ -47,9 +47,6 @@ from ..utils.transform import random_transform_generator
 
 
 def makedirs(path):
-    # Intended behavior: try to create the directory,
-    # pass if the directory exists already, fails otherwise.
-    # Meant for Python 2.7/3.n compatibility.
     try:
         os.makedirs(path)
     except OSError:
@@ -58,42 +55,20 @@ def makedirs(path):
 
 
 def get_session():
-    """ Construct a modified tf session.
-    """
+
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True
     return tf.Session(config=config)
 
 
 def model_with_weights(model, weights, skip_mismatch):
-    """ Load weights for model.
 
-    Args
-        model         : The model to load weights for.
-        weights       : The weights to load.
-        skip_mismatch : If True, skips layers whose shape of weights doesn't match with the model.
-    """
     if weights is not None:
         model.load_weights(weights, by_name=True, skip_mismatch=skip_mismatch)
     return model
 
 
 def create_models(backbone_retinanet, num_classes, weights, multi_gpu=0, freeze_backbone=False, config=None):
-    """ Creates three models (model, training_model, prediction_model).
-
-    Args
-        backbone_retinanet : A function to call to create a retinanet model with a given backbone.
-        num_classes        : The number of classes to train.
-        weights            : The weights to load into the model.
-        multi_gpu          : The number of GPUs to use for training.
-        freeze_backbone    : If True, disables learning for the backbone.
-        config             : Config parameters, None indicates the default configuration.
-
-    Returns
-        model            : The base model. This is also the model that is saved in snapshots.
-        training_model   : The training model. If multi_gpu=0, this is identical to model.
-        prediction_model : The model wrapped with utility functions to perform object detection (applies regression values and performs NMS).
-    """
 
     modifier = freeze_model if freeze_backbone else None
 
@@ -116,7 +91,6 @@ def create_models(backbone_retinanet, num_classes, weights, multi_gpu=0, freeze_
             'bbox' : losses.smooth_l1(),
             'pose': losses.weighted_MSE(),
             'cls': losses.focal()
-
         },
         optimizer=keras.optimizers.adam(lr=1e-5, clipnorm=0.001)
     )
@@ -125,18 +99,7 @@ def create_models(backbone_retinanet, num_classes, weights, multi_gpu=0, freeze_
 
 
 def create_callbacks(model, training_model, prediction_model, validation_generator, args):
-    """ Creates the callbacks to use during training.
 
-    Args
-        model: The base model.
-        training_model: The model that is used for training.
-        prediction_model: The model that should be used for validation.
-        validation_generator: The generator for creating validation data.
-        args: parseargs args object.
-
-    Returns:
-        A list of callbacks used for training.
-    """
     callbacks = []
 
     tensorboard_callback = None
@@ -159,16 +122,13 @@ def create_callbacks(model, training_model, prediction_model, validation_generat
         if args.dataset_type == 'coco':
             from ..callbacks.coco import CocoEval
 
-            # use prediction model for evaluation
             evaluation = CocoEval(validation_generator, tensorboard=tensorboard_callback)
         else:
             evaluation = Evaluate(validation_generator, tensorboard=tensorboard_callback, weighted_average=args.weighted_average)
         evaluation = RedirectModel(evaluation, prediction_model)
         callbacks.append(evaluation)
 
-    # save the model
     if args.snapshots:
-        # ensure directory created first; otherwise h5py will error after epoch.
         makedirs(args.snapshot_path)
         checkpoint = keras.callbacks.ModelCheckpoint(
             os.path.join(
@@ -176,9 +136,7 @@ def create_callbacks(model, training_model, prediction_model, validation_generat
                 '{backbone}_{dataset_type}_{{epoch:02d}}.h5'.format(backbone=args.backbone, dataset_type=args.dataset_type)
             ),
             verbose=1,
-            # save_best_only=True,
-            # monitor="mAP",
-            # mode='max'
+
         )
         checkpoint = RedirectModel(checkpoint, model)
         callbacks.append(checkpoint)
@@ -198,12 +156,7 @@ def create_callbacks(model, training_model, prediction_model, validation_generat
 
 
 def create_generators(args, preprocess_image):
-    """ Create generators for training and validation.
 
-    Args
-        args             : parseargs object containing configuration for generators.
-        preprocess_image : Function that preprocesses an image for the network.
-    """
     common_args = {
         'batch_size'       : args.batch_size,
         'config'           : args.config,
@@ -212,7 +165,6 @@ def create_generators(args, preprocess_image):
         'preprocess_image' : preprocess_image,
     }
 
-    # create random transform generator for augmenting training data
     if args.random_transform:
         transform_generator = random_transform_generator(
             min_rotation=-0.1,
@@ -229,24 +181,7 @@ def create_generators(args, preprocess_image):
     else:
         transform_generator = random_transform_generator(flip_x_chance=0.5)
 
-    if args.dataset_type == 'coco':
-        # import here to prevent unnecessary dependency on cocoapi
-        from ..preprocessing.coco import CocoGenerator
-
-        train_generator = CocoGenerator(
-            args.coco_path,
-            'train2014',
-            transform_generator=transform_generator,
-            **common_args
-        )
-
-        validation_generator = CocoGenerator(
-            args.coco_path,
-            'val2014',
-            **common_args
-        )
-        train_iterations = len(os.listdir(os.path.join(args.coco_path, 'images/train2014')))
-    elif args.dataset_type == 'linemod':
+    if args.dataset_type == 'linemod':
         # import here to prevent unnecessary dependency on cocoapi
         from ..preprocessing.linemod import LinemodGenerator
 
@@ -287,35 +222,15 @@ def create_generators(args, preprocess_image):
 
 
 def parse_args(args):
-    """ Parse the arguments.
-    """
-    parser     = argparse.ArgumentParser(description='Simple training script for training a RetinaNet network.')
+    parser = argparse.ArgumentParser(description='RetinaNet with pose estimation.')
     subparsers = parser.add_subparsers(help='Arguments for specific dataset types.', dest='dataset_type')
     subparsers.required = True
-
-    coco_parser = subparsers.add_parser('coco')
-    coco_parser.add_argument('coco_path', help='Path to dataset directory (ie. /tmp/COCO).')
 
     linemod_parser = subparsers.add_parser('linemod')
     linemod_parser.add_argument('linemod_path', help='Path to dataset directory (ie. /tmp/LineMOD).')
 
     tless_parser = subparsers.add_parser('tless')
     tless_parser.add_argument('tless_path', help='Path to dataset directory (ie. /tmp/Tless).')
-
-    def csv_list(string):
-        return string.split(',')
-
-    oid_parser = subparsers.add_parser('oid')
-    oid_parser.add_argument('main_dir', help='Path to dataset directory.')
-    oid_parser.add_argument('--version',  help='The current dataset version is v4.', default='v4')
-    oid_parser.add_argument('--labels-filter',  help='A list of labels to filter.', type=csv_list, default=None)
-    oid_parser.add_argument('--annotation-cache-dir', help='Path to store annotation cache.', default='.')
-    oid_parser.add_argument('--parent-label', help='Use the hierarchy children of this label.', default=None)
-
-    csv_parser = subparsers.add_parser('csv')
-    csv_parser.add_argument('annotations', help='Path to CSV file containing annotations for training.')
-    csv_parser.add_argument('classes', help='Path to a CSV file containing class label mapping.')
-    csv_parser.add_argument('--val-annotations', help='Path to CSV file containing annotations for validation (optional).')
 
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--snapshot',          help='Resume training from a snapshot.')
@@ -328,7 +243,7 @@ def parse_args(args):
     parser.add_argument('--gpu',              help='Id of the GPU to use (as reported by nvidia-smi).')
     #parser.add_argument('--multi-gpu',        help='Number of GPUs to use for parallel processing.', type=int, default=0)
     #parser.add_argument('--multi-gpu-force',  help='Extra flag needed to enable (experimental) multi-gpu support.', action='store_true')
-    parser.add_argument('--epochs',           help='Number of epochs to train.', type=int, default=3)
+    parser.add_argument('--epochs',           help='Number of epochs to train.', type=int, default=15)
     #parser.add_argument('--steps',            help='Number of steps per epoch.', type=int, default=10000)
     parser.add_argument('--snapshot-path',    help='Path to store snapshots of models during training (defaults to \'./data\')', default='./data')
     parser.add_argument('--tensorboard-dir',  help='Log directory for Tensorboard output', default='./logs')
@@ -345,42 +260,36 @@ def parse_args(args):
 
 
 def main(args=None):
-    # parse arguments
+
     if args is None:
         args = sys.argv[1:]
     args = parse_args(args)
 
-    # create object that stores backbone information
     backbone = models.backbone(args.backbone)
 
-    # make sure keras is the minimum required version
     check_keras_version()
 
-    # optionally choose specific GPU
     if args.gpu:
         print('specified GPU for training: ', args.gpu)
         os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
     keras.backend.tensorflow_backend.set_session(get_session())
 
-    # optionally load config parameters
     if args.config:
         args.config = read_config_file(args.config)
 
-    # create the generators
     train_generator, validation_generator, train_iterations = create_generators(args, backbone.preprocess_image)
 
-    # create the model
     if args.snapshot is not None:
         print('Loading model, this may take a second...')
-        model            = models.load_model(args.snapshot, backbone_name=args.backbone)
-        training_model   = model
-        anchor_params    = None
+        model = models.load_model(args.snapshot, backbone_name=args.backbone)
+        training_model = model
+        anchor_params = None
         if args.config and 'anchor_parameters' in args.config:
             anchor_params = parse_anchor_parameters(args.config)
         prediction_model = retinanet_bbox(model=model, anchor_params=anchor_params)
     else:
         weights = args.weights
-        # default to imagenet if nothing else is specified
+
         if weights is None and args.imagenet_weights:
             weights = backbone.download_imagenet()
 
@@ -394,11 +303,8 @@ def main(args=None):
             config=args.config
         )
 
-    # print model summary
     print(model.summary())
 
-
-    # create the callbacks
     callbacks = create_callbacks(
         model,
         training_model,
@@ -410,7 +316,7 @@ def main(args=None):
     # start training
     training_model.fit_generator(
         generator=train_generator,
-        steps_per_epoch=50000,
+        steps_per_epoch=train_iterations,
         epochs=args.epochs,
         verbose=1,
         callbacks=callbacks,

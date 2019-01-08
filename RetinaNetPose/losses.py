@@ -149,6 +149,7 @@ def weighted_MSE(alpha=0.7):
 
         #regression_loss = alpha * keras.backend.sqrt(keras.backend.pow(regression[4:6], 2) - keras.backend.pow(regression_target[4:6], 2)) + (1-alpha) * keras.backend.sqrt(keras.backend.pow(regression[0:4], 2) - keras.backend.pow(regression_target[0:4], 2))
         regression_loss = keras.losses.mean_squared_error(regression, regression_target)
+        print('regression_loss: ', regression_loss)
 
         #### compute the normalizer: the number of positive anchors
         normalizer = keras.backend.maximum(1, keras.backend.shape(indices)[0])

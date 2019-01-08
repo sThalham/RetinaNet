@@ -139,7 +139,7 @@ class Generator(object):
             assert(isinstance(annotations, dict)), '\'load_annotations\' should return a list of dictionaries, received: {}'.format(type(annotations))
             assert('labels' in annotations), '\'load_annotations\' should return a list of dictionaries that contain \'labels\' and \'bboxes\'.'
             assert('bboxes' in annotations), '\'load_annotations\' should return a list of dictionaries that contain \'labels\' and \'bboxes\'.'
-            assert ('poses' in annotations), '\'load_annotations\' should return a list of dictionaries that contain \'labels\' and \'bboxes\'.'
+            assert('poses' in annotations), '\'load_annotations\' should return a list of dictionaries that contain \'labels\' and \'bboxes\'.'
 
         return annotations_group
 
@@ -203,8 +203,6 @@ class Generator(object):
         return image, annotations
 
     def random_transform_group(self, image_group, annotations_group):
-        """ Randomly transforms each image and its annotations.
-        """
 
         assert(len(image_group) == len(annotations_group))
 
@@ -220,22 +218,15 @@ class Generator(object):
         return resize_image(image, min_side=self.image_min_side, max_side=self.image_max_side)
 
     def preprocess_group_entry(self, image, annotations):
-        """ Preprocess image and its annotations.
-        """
-        # preprocess the image
         image = self.preprocess_image(image)
 
-        # resize image
         image, image_scale = self.resize_image(image)
 
-        # apply resizing to annotations too
         annotations['bboxes'] *= image_scale
 
         return image, annotations
 
     def preprocess_group(self, image_group, annotations_group):
-        """ Preprocess each image and its annotations in its group.
-        """
         assert(len(image_group) == len(annotations_group))
 
         for index in range(len(image_group)):
@@ -245,16 +236,12 @@ class Generator(object):
         return image_group, annotations_group
 
     def group_images(self):
-        """ Order the images according to self.order and makes groups of self.batch_size.
-        """
-        # determine the order of the images
         order = list(range(self.size()))
         if self.group_method == 'random':
             random.shuffle(order)
         elif self.group_method == 'ratio':
             order.sort(key=lambda x: self.image_aspect_ratio(x))
 
-        # divide into groups, one group = one batch
         self.groups = [[order[x % len(order)] for x in range(i, i + self.batch_size)] for i in range(0, len(order), self.batch_size)]
 
     def compute_inputs(self, image_group):

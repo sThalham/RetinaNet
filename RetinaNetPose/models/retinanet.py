@@ -137,9 +137,7 @@ def default_pose_regression_model(num_values, num_anchors, pyramid_feature_size=
     Returns
         A keras.models.Model that predicts regression values for each anchor.
     """
-    # All new conv layers except the final one in the
-    # RetinaNet (classification) subnets are initialized
-    # with bias b = 0 and a Gaussian weight fill with stddev = 0.01.
+    # mean and stddev are Retinanet specifics
     options = {
         'kernel_size'        : 3,
         'strides'            : 2,
@@ -156,13 +154,13 @@ def default_pose_regression_model(num_values, num_anchors, pyramid_feature_size=
     for i in range(3):
         outputs = keras.layers.Conv2D(
             filters=regression_feature_size,
-            activation='tanh',
+            activation='relu',
             name='pyramid_pose_regression_{}'.format(i),
             **options
         )(outputs)
 
-    outputs = keras.layers.Dense(num_anchors * num_values, activation='tanh', name='pyramid_pose_regression_f1')(outputs)
-    outputs = keras.layers.Dense(num_anchors * num_values, activation='tanh', kernel_regularizer=keras.regularizers.l2(0.01),
+    outputs = keras.layers.Dense(num_anchors * num_values, activation='relu', name='pyramid_pose_regression_f1')(outputs)
+    outputs = keras.layers.Dense(num_anchors * num_values, activation='relu', kernel_regularizer=keras.regularizers.l2(0.01),
                 activity_regularizer=keras.regularizers.l1(0.01), name='pyramid_pose_regression_f2')(outputs)
     if keras.backend.image_data_format() == 'channels_first':
         outputs = keras.layers.Permute((2, 3, 1), name='pyramid_regression_permute')(outputs)
@@ -172,17 +170,7 @@ def default_pose_regression_model(num_values, num_anchors, pyramid_feature_size=
 
 
 def __create_pyramid_features(C3, C4, C5, feature_size=256):
-    """ Creates the FPN layers on top of the backbone features.
 
-    Args
-        C3           : Feature stage C3 from the backbone.
-        C4           : Feature stage C4 from the backbone.
-        C5           : Feature stage C5 from the backbone.
-        feature_size : The feature size to use for the resulting feature levels.
-
-    Returns
-        A list of feature levels [P3, P4, P5, P6, P7].
-    """
     # upsample C5 to get P5 from the FPN paper
     P5           = keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, padding='same', name='C5_reduced')(C5)
     P5_upsampled = layers.UpsampleLike(name='P5_upsampled')([P5, C4])
@@ -210,17 +198,7 @@ def __create_pyramid_features(C3, C4, C5, feature_size=256):
 
 
 def default_submodels(num_classes, num_anchors):
-    """ Create a list of default submodels used for object detection.
 
-    The default submodels contains a regression submodel and a classification submodel.
-
-    Args
-        num_classes : Number of classes to use.
-        num_anchors : Number of base anchors.
-
-    Returns
-        A list of tuple, where the first element is the name of the submodel and the second element is the submodel itself.
-    """
     return [
         ('bbox', default_regression_model(4, num_anchors)),
         ('pose', default_pose_regression_model(4, num_anchors)),
@@ -229,47 +207,17 @@ def default_submodels(num_classes, num_anchors):
 
 
 def __build_model_pyramid(name, model, features):
-    """ Applies a single submodel to each FPN level.
 
-    Args
-        name     : Name of the submodel.
-        model    : The submodel to evaluate.
-        features : The FPN features.
-
-    Returns
-        A tensor containing the response from the submodel on the FPN features.
-    """
     return keras.layers.Concatenate(axis=1, name=name)([model(f) for f in features])
 
 
 def __build_pyramid(models, features):
-    """ Applies all submodels to each FPN level.
 
-    Args
-        models   : List of sumodels to run on each pyramid level (by default only regression, classifcation).
-        features : The FPN features.
-
-    Returns
-        A list of tensors, one for each submodel.
-    """
     return [__build_model_pyramid(n, m, features) for n, m in models]
 
 
 def __build_anchors(anchor_parameters, features):
-    """ Builds anchors for the shape of the features from FPN.
 
-    Args
-        anchor_parameters : Parameteres that determine how anchors are generated.
-        features          : The FPN features.
-
-    Returns
-        A tensor containing the anchors for the FPN features.
-
-        The shape is:
-        ```
-        (batch_size, num_anchors, 4)
-        ```
-    """
     anchors = [
         layers.Anchors(
             size=anchor_parameters.sizes[i],
@@ -287,33 +235,11 @@ def retinanet(
     inputs,
     backbone_layers,
     num_classes,
-    num_anchors             = None,
-    create_pyramid_features = __create_pyramid_features,
-    submodels               = None,
-    name                    = 'retinanet'
+    num_anchors=None,
+    create_pyramid_features=__create_pyramid_features,
+    submodels=None,
+    name='retinanet'
 ):
-    """ Construct a RetinaNet model on top of a backbone.
-
-    This model is the minimum model necessary for training (with the unfortunate exception of anchors as output).
-
-    Args
-        inputs                  : keras.layers.Input (or list of) for the input to the model.
-        num_classes             : Number of classes to classify.
-        num_anchors             : Number of base anchors.
-        create_pyramid_features : Functor for creating pyramid features given the features C3, C4, C5 from the backbone.
-        submodels               : Submodels to run on each feature map (default is regression and classification submodels).
-        name                    : Name of the model.
-
-    Returns
-        A keras.models.Model which takes an image as input and outputs generated anchors and the result from each submodel on every pyramid level.
-
-        The order of the outputs is as defined in submodels:
-        ```
-        [
-            regression, classification, other[0], other[1], ...
-        ]
-        ```
-    """
 
     if num_anchors is None:
         num_anchors = AnchorParameters.default.num_anchors()
@@ -322,67 +248,35 @@ def retinanet(
         submodels = default_submodels(num_classes, num_anchors)
 
     C3, C4, C5 = backbone_layers
-
-    # compute pyramid features as per https://arxiv.org/abs/1708.02002
     features = create_pyramid_features(C3, C4, C5)
-
-    # for all pyramid levels, run available submodels
     pyramids = __build_pyramid(submodels, features)
 
     return keras.models.Model(inputs=inputs, outputs=pyramids, name=name)
 
 
 def retinanet_bbox(
-    model                 = None,
-    nms                   = True,
-    class_specific_filter = True,
-    name                  = 'retinanet-bbox',
-    anchor_params         = None,
+    model=None,
+    nms=True,
+    class_specific_filter=True,
+    name='retinanet-bbox',
+    anchor_params=None,
     **kwargs
 ):
-    """ Construct a RetinaNet model on top of a backbone and adds convenience functions to output boxes directly.
 
-    This model uses the minimum retinanet model and appends a few layers to compute boxes within the graph.
-    These layers include applying the regression values to the anchors and performing NMS.
-
-    Args
-        model                 : RetinaNet model to append bbox layers to. If None, it will create a RetinaNet model using **kwargs.
-        nms                   : Whether to use non-maximum suppression for the filtering step.
-        class_specific_filter : Whether to use class specific filtering or filter for the best scoring class only.
-        name                  : Name of the model.
-        anchor_params         : Struct containing anchor parameters. If None, default values are used.
-        *kwargs               : Additional kwargs to pass to the minimal retinanet model.
-
-    Returns
-        A keras.models.Model which takes an image as input and outputs the detections on the image.
-
-        The order is defined as follows:
-        ```
-        [
-            boxes, scores, labels, other[0], other[1], ...
-        ]
-        ```
-    """
-    # if no anchor parameters are passed, use default values
     if anchor_params is None:
         anchor_params = AnchorParameters.default
 
-    # create RetinaNet model
     if model is None:
         model = retinanet(num_anchors=anchor_params.num_anchors(), **kwargs)
     else:
         assert_training_model(model)
 
-    # compute the anchors
     features = [model.get_layer(p_name).output for p_name in ['P3', 'P4', 'P5', 'P6', 'P7']]
-    anchors  = __build_anchors(anchor_params, features)
+    anchors = __build_anchors(anchor_params, features)
 
-    # we expect the anchors, regression and classification values as first output
-    regression     = model.outputs[0]
+    regression = model.outputs[0]
     pose_regression = model.outputs[1]
     classification = model.outputs[2]
-
-    # "other" can be any additional output from custom submodels, by default this will be []
     other = model.outputs[3:]
 
     # apply predicted regression to anchors
@@ -390,12 +284,6 @@ def retinanet_bbox(
     boxes = layers.ClipBoxes(name='clipped_boxes')([model.inputs[0], boxes])
     poses = layers.RegressPoses(name='poses')([anchors, pose_regression])
 
-    # filter detections (apply NMS / score threshold / select top-k)
-    detections = layers.FilterDetections(
-        nms                   = nms,
-        class_specific_filter = class_specific_filter,
-        name                  = 'filtered_detections'
-    )([boxes, poses, classification] + other)
-
-    # construct the model
+    detections = layers.FilterDetections(nms=nms, class_specific_filter=class_specific_filter,
+                                         name='filtered_detections')([boxes, poses, classification] + other)
     return keras.models.Model(inputs=model.inputs, outputs=detections, name=name)
