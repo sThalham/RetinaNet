@@ -19,7 +19,20 @@ from .. import initializers
 from .. import layers
 from ..utils.anchors import AnchorParameters
 from . import assert_training_model
-import sys
+import tensorflow as tf
+
+
+#tf.enable_eager_execution()
+
+
+def print_pre(layer):
+    layer = keras.backend.print_tensor(layer, message="pose_regression pre reshape: ")
+    return layer
+
+
+def print_post(layer):
+    layer = keras.backend.print_tensor(layer, message="pose_regression post reshape: ")
+    return layer
 
 
 def default_classification_model(
@@ -30,18 +43,7 @@ def default_classification_model(
     classification_feature_size=256,
     name='classification_submodel'
 ):
-    """ Creates the default regression submodel.
 
-    Args
-        num_classes                 : Number of classes to predict a score for at each feature level.
-        num_anchors                 : Number of anchors to predict classification scores for at each feature level.
-        pyramid_feature_size        : The number of filters to expect from the feature pyramid levels.
-        classification_feature_size : The number of filters to use in the layers in the classification submodel.
-        name                        : The name of the submodel.
-
-    Returns
-        A keras.models.Model that predicts classes for each anchor.
-    """
     options = {
         'kernel_size' : 3,
         'strides'     : 1,
@@ -81,21 +83,7 @@ def default_classification_model(
 
 
 def default_regression_model(num_values, num_anchors, pyramid_feature_size=256, regression_feature_size=256, name='regression_submodel'):
-    """ Creates the default regression submodel.
 
-    Args
-        num_values              : Number of values to regress.
-        num_anchors             : Number of anchors to regress for each feature level.
-        pyramid_feature_size    : The number of filters to expect from the feature pyramid levels.
-        regression_feature_size : The number of filters to use in the layers in the regression submodel.
-        name                    : The name of the submodel.
-
-    Returns
-        A keras.models.Model that predicts regression values for each anchor.
-    """
-    # All new conv layers except the final one in the
-    # RetinaNet (classification) subnets are initialized
-    # with bias b = 0 and a Gaussian weight fill with stddev = 0.01.
     options = {
         'kernel_size'        : 3,
         'strides'            : 1,
@@ -120,23 +108,14 @@ def default_regression_model(num_values, num_anchors, pyramid_feature_size=256, 
     outputs = keras.layers.Conv2D(num_anchors * num_values, name='pyramid_regression', **options)(outputs)
     if keras.backend.image_data_format() == 'channels_first':
         outputs = keras.layers.Permute((2, 3, 1), name='pyramid_regression_permute')(outputs)
+
     outputs = keras.layers.Reshape((-1, num_values), name='pyramid_regression_reshape')(outputs)
 
     return keras.models.Model(inputs=inputs, outputs=outputs, name=name)
 
 
 def default_pose_regression_model(num_values, num_anchors, pyramid_feature_size=256, regression_feature_size=256, name='pose_regression_submodel'):
-    """ Creates the default regression submodel.
 
-    Args
-        num_anchors             : Number of anchors to regress for each feature level.
-        pyramid_feature_size    : The number of filters to expect from the feature pyramid levels.
-        regression_feature_size : The number of filters to use in the layers in the regression submodel.
-        name                    : The name of the submodel.
-
-    Returns
-        A keras.models.Model that predicts regression values for each anchor.
-    """
     # mean and stddev are Retinanet specifics
     options = {
         'kernel_size'        : 3,
@@ -154,17 +133,23 @@ def default_pose_regression_model(num_values, num_anchors, pyramid_feature_size=
     for i in range(3):
         outputs = keras.layers.Conv2D(
             filters=regression_feature_size,
-            activation='relu',
+            activation='selu',
             name='pyramid_pose_regression_{}'.format(i),
             **options
         )(outputs)
 
-    outputs = keras.layers.Dense(num_anchors * num_values, activation='relu', name='pyramid_pose_regression_f1')(outputs)
-    outputs = keras.layers.Dense(num_anchors * num_values, activation='relu', kernel_regularizer=keras.regularizers.l2(0.01),
-                activity_regularizer=keras.regularizers.l1(0.01), name='pyramid_pose_regression_f2')(outputs)
+    outputs = keras.layers.Dense(num_anchors * num_values, activation='selu', name='pyramid_pose_regression_f1')(outputs)
+    outputs = keras.layers.Dense(num_anchors * num_values, activation='selu', name='pyramid_pose_regression_f2')(outputs)
+    #outputs = keras.layers.Dense(num_anchors * num_values, activation='linear', kernel_regularizer=keras.regularizers.l2(0.01),
+    #            activity_regularizer=keras.regularizers.l1(0.01), name='pyramid_pose_regression_f2')(outputs)
+
+    #outputs = keras.layers.Lambda(print_pre)(outputs)
+
     if keras.backend.image_data_format() == 'channels_first':
         outputs = keras.layers.Permute((2, 3, 1), name='pyramid_regression_permute')(outputs)
     outputs = keras.layers.Reshape((-1, num_values), name='pyramid_pose_regression_reshape')(outputs)
+
+    #outputs = keras.layers.Lambda(print_post)(outputs)
 
     return keras.models.Model(inputs=inputs, outputs=outputs, name=name)
 
@@ -281,9 +266,14 @@ def retinanet_bbox(
 
     # apply predicted regression to anchors
     boxes = layers.RegressBoxes(name='boxes')([anchors, regression])
+    #functors = keras.backend.function([anchors, regression], [boxes])
+    #print(keras.backend.eval(boxes))
     boxes = layers.ClipBoxes(name='clipped_boxes')([model.inputs[0], boxes])
     poses = layers.RegressPoses(name='poses')([anchors, pose_regression])
 
+    #boxes = keras.layers.Lambda(print_pre)(boxes)
+
     detections = layers.FilterDetections(nms=nms, class_specific_filter=class_specific_filter,
                                          name='filtered_detections')([boxes, poses, classification] + other)
+
     return keras.models.Model(inputs=model.inputs, outputs=detections, name=name)

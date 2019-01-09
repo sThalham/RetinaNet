@@ -285,16 +285,17 @@ def bbox_transform(anchors, gt_boxes, mean=None, std=None):
 
 def pose_transform(anchors, gt_poses, mean=None, std=None):
     # tanh unit quaternion without normalization
-    # if mean is None:
-    #    mean = [0.0, 0.0, 0.0, 0.0]
-    # if std is None:
-    #    std = [1.0, 1.0, 1.0, 1.0]
-
-    # relu unit quaternion [0, 1]
     if mean is None:
-        mean = [-1.0, -1.0, -1.0, -1.0]
+       mean = [0.0, 0.0, 0.0, 0.0]
     if std is None:
         std = [2.0, 2.0, 2.0, 2.0]
+
+    # relu unit quaternion [0, 1]
+    #if mean is None:
+    #    mean = [-1.0, -1.0, -1.0, -1.0]
+    #if std is None:
+    #    std = [2.0, 2.0, 2.0, 2.0]
+    #    std = [0.1, 0.1, 0.1, 0.1]
 
     if isinstance(mean, (list, tuple)):
         mean = np.array(mean)
@@ -317,10 +318,12 @@ def pose_transform(anchors, gt_poses, mean=None, std=None):
     targets_rz = (gt_poses[:, 5])
     targets_rw = (gt_poses[:, 6])
 
+    #print('target: ', gt_poses)
     #targets = np.stack((targets_x, targets_y, targets_z, targets_rx, targets_ry, targets_rz, targets_rw))
     targets = np.stack((targets_rx, targets_ry, targets_rz, targets_rw))
     targets = targets.T
 
     targets = (targets - mean) / std
+    #print('target: ', targets)
 
     return targets

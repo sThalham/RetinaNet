@@ -38,8 +38,6 @@ from .. import models
 from ..callbacks import RedirectModel
 from ..callbacks.eval import Evaluate
 from ..models.retinanet import retinanet_bbox
-from ..preprocessing.csv_generator import CSVGenerator
-from ..utils.anchors import make_shapes_callback
 from ..utils.config import read_config_file, parse_anchor_parameters
 from ..utils.keras_version import check_keras_version
 from ..utils.model import freeze as freeze_model
@@ -79,19 +77,23 @@ def create_models(backbone_retinanet, num_classes, weights, multi_gpu=0, freeze_
         anchor_params = parse_anchor_parameters(config)
         num_anchors   = anchor_params.num_anchors()
 
-    model          = model_with_weights(backbone_retinanet(num_classes, num_anchors=num_anchors, modifier=modifier), weights=weights, skip_mismatch=True)
+    model = model_with_weights(backbone_retinanet(num_classes, num_anchors=num_anchors, modifier=modifier), weights=weights, skip_mismatch=True)
     training_model = model
 
     # make prediction model
     prediction_model = retinanet_bbox(model=model, anchor_params=anchor_params)
 
     # compile model
+    alpha = keras.backend.variable(1.0)
+    beta = keras.backend.variable(10.0)
+    gamma = keras.backend.variable(1.0)
     training_model.compile(
         loss={
             'bbox' : losses.smooth_l1(),
             'pose': losses.weighted_MSE(),
             'cls': losses.focal()
         },
+        cd wo   loss_weights=[alpha, beta, gamma],
         optimizer=keras.optimizers.adam(lr=1e-5, clipnorm=0.001)
     )
 
@@ -303,7 +305,7 @@ def main(args=None):
             config=args.config
         )
 
-    print(model.summary())
+    #print(model.summary())
 
     callbacks = create_callbacks(
         model,

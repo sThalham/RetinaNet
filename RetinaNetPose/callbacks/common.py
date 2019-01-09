@@ -22,6 +22,8 @@ class RedirectModel(keras.callbacks.Callback):
 
     def on_batch_end(self, batch, logs=None):
         self.callback.on_batch_end(batch, logs=logs)
+        x = self.redirect_model.outputs[1]
+        #print(x)
 
     def on_train_begin(self, logs=None):
         # overwrite the model with our custom model

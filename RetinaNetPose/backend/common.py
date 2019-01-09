@@ -39,16 +39,17 @@ def bbox_transform_inv(boxes, deltas, mean=None, std=None):
 
 def pose_transform_inv(poses, deltas, mean=None, std=None):
     # tanh unit quaternion without normalization
-    #if mean is None:
-    #    mean = [0.0, 0.0, 0.0, 0.0]
-    #if std is None:
-    #    std = [1.0, 1.0, 1.0, 1.0]
-
-    # relu unit quaternion [0, 1]
     if mean is None:
-        mean = [-1.0, -1.0, -1.0, -1.0]
+        mean = [0.0, 0.0, 0.0, 0.0]
     if std is None:
         std = [2.0, 2.0, 2.0, 2.0]
+
+    # relu unit quaternion [0, 1]
+    #if mean is None:
+    #    mean = [-1.0, -1.0, -1.0, -1.0]
+    #if std is None:
+    #    std = [2.0, 2.0, 2.0, 2.0]
+    #    std = [0.1, 0.1, 0.1, 0.1]
 
     #x = deltas[:, :, 0] * std[0] + mean[0]
     #y = deltas[:, :, 1] * std[1] + mean[1]
