@@ -167,18 +167,10 @@ class ClipBoxes(keras.layers.Layer):
 class RegressPoses(keras.layers.Layer):
 
     def __init__(self, mean=None, std=None, *args, **kwargs):
-        # tanh unit quaternion without normalization
         if mean is None:
-            mean = [0.0, 0.0, 0.0, 0.0]
+            mean = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         if std is None:
-            std = [1.0, 1.0, 1.0, 1.0]
-
-        # relu unit quaternion [0, 1]
-        #if mean is None:
-        #    mean = [-1.0, -1.0, -1.0, -1.0]
-        #if std is None:
-        #    std = [2.0, 2.0, 2.0, 2.0]
-        #    std = [0.1, 0.1, 0.1, 0.1]
+            std = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
 
         if isinstance(mean, (list, tuple)):
             mean = np.array(mean)

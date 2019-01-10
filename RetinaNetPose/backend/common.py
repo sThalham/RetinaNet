@@ -38,29 +38,21 @@ def bbox_transform_inv(boxes, deltas, mean=None, std=None):
 
 
 def pose_transform_inv(poses, deltas, mean=None, std=None):
-    # tanh unit quaternion without normalization
     if mean is None:
-       mean = [0.0, 0.0, 0.0, 0.0]
+       mean = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
     if std is None:
-        std = [1.0, 1.0, 1.0, 1.0]
+        std = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
 
-    # relu unit quaternion [0, 1]
-    #if mean is None:
-    #    mean = [-1.0, -1.0, -1.0, -1.0]
-    #if std is None:
-    #    std = [2.0, 2.0, 2.0, 2.0]
-    #    std = [0.1, 0.1, 0.1, 0.1]
-
-    #x = deltas[:, :, 0] * std[0] + mean[0]
-    #y = deltas[:, :, 1] * std[1] + mean[1]
-    #z = deltas[:, :, 2] * std[2] + mean[2]
+    x = deltas[:, :, 0] * std[0] + mean[0]
+    y = deltas[:, :, 1] * std[1] + mean[1]
+    z = deltas[:, :, 2] * std[2] + mean[2]
     rx = deltas[:, :, 0] * std[0] + mean[0]
     ry = deltas[:, :, 1] * std[1] + mean[1]
     rz = deltas[:, :, 2] * std[2] + mean[2]
     rw = deltas[:, :, 3] * std[3] + mean[3]
 
-    #pred_pose = keras.backend.stack([x, y, z, rx, ry, rz, rw], axis=2)
-    pred_pose = keras.backend.stack([rx, ry, rz, rw], axis=2)
+    pred_pose = keras.backend.stack([x, y, z, rx, ry, rz, rw], axis=2)
+    #pred_pose = keras.backend.stack([rx, ry, rz, rw], axis=2)
 
     return pred_pose
 

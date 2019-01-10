@@ -127,11 +127,11 @@ def default_pose_regression_model(num_values, num_anchors, pyramid_feature_size=
 
     if keras.backend.image_data_format() == 'channels_first':
         inputs  = keras.layers.Input(shape=(pyramid_feature_size, None, None))
-        norm_axis = 1
     else:
         inputs  = keras.layers.Input(shape=(None, None, pyramid_feature_size))
-        norm_axis = 3
+
     outputs = inputs
+
     #for i in range(3):
     #    outputs = keras.layers.Conv2D(
     #        filters=regression_feature_size,
@@ -144,12 +144,17 @@ def default_pose_regression_model(num_values, num_anchors, pyramid_feature_size=
     #        axis=norm_axis
     #    )(outputs)
 
-    outputs = keras.layers.Dense(num_anchors * num_values, activation='relu', name='pyramid_pose_regression_f1')(outputs)
-    outputs = keras.layers.Dense(num_anchors * num_values, activation='relu', name='pyramid_pose_regression_f2')(outputs)
+    # shared fc-layer
+    outputs = keras.layers.Dense(num_anchors * num_values, activation='relu', name='pyramid_pose_regression_sharedF')(outputs)
+    # position layer
+    outputsP = keras.layers.Dense(num_anchors * 3, activation='relu', name='pyramid_pose_regression_positionF')(outputs)
+    # orientation layer
+    outputsQ = keras.layers.Dense(num_anchors * 4, activation='relu', name='pyramid_pose_regression_orientationF')(outputs)
+    outputs = keras.layers.Concatenate(axis=-1, name='pyramid_pose_regression_concat')([outputsP, outputsQ])
     #outputs = keras.layers.Dense(num_anchors * num_values, activation='linear', kernel_regularizer=keras.regularizers.l2(0.01),
     #            activity_regularizer=keras.regularizers.l1(0.01), name='pyramid_pose_regression_f2')(outputs)
 
-    #outputs = keras.layers.Lambda(print_pre)(outputs)
+    #outputs = keras.layers.Lambda(print_post)(outputs)
 
     if keras.backend.image_data_format() == 'channels_first':
         outputs = keras.layers.Permute((2, 3, 1), name='pyramid_regression_permute')(outputs)
@@ -190,7 +195,7 @@ def default_submodels(num_classes, num_anchors):
 
     return [
         ('bbox', default_regression_model(4, num_anchors)),
-        ('pose', default_pose_regression_model(4, num_anchors)),
+        ('pose', default_pose_regression_model(7, num_anchors)),
         ('cls', default_classification_model(num_classes, num_anchors))
     ]
 
@@ -270,8 +275,6 @@ def retinanet_bbox(
 
     # apply predicted regression to anchors
     boxes = layers.RegressBoxes(name='boxes')([anchors, regression])
-    #functors = keras.backend.function([anchors, regression], [boxes])
-    #print(keras.backend.eval(boxes))
     boxes = layers.ClipBoxes(name='clipped_boxes')([model.inputs[0], boxes])
     poses = layers.RegressPoses(name='poses')([anchors, pose_regression])
 
