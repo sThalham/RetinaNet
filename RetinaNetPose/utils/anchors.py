@@ -288,7 +288,7 @@ def pose_transform(anchors, gt_poses, mean=None, std=None):
     if mean is None:
        mean = [0.0, 0.0, 0.0, 0.0]
     if std is None:
-        std = [2.0, 2.0, 2.0, 2.0]
+        std = [1.0, 1.0, 1.0, 1.0]
 
     # relu unit quaternion [0, 1]
     #if mean is None:

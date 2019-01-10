@@ -121,25 +121,31 @@ def default_pose_regression_model(num_values, num_anchors, pyramid_feature_size=
         'kernel_size'        : 3,
         'strides'            : 2,
         'padding'            : 'same',
-        'kernel_initializer' : keras.initializers.normal(mean=0.0, stddev=0.01, seed=None),
+        #'kernel_initializer' : keras.initializers.normal(mean=0.0, stddev=0.01, seed=None),
         'bias_initializer'   : 'zeros'
     }
 
     if keras.backend.image_data_format() == 'channels_first':
         inputs  = keras.layers.Input(shape=(pyramid_feature_size, None, None))
+        norm_axis = 1
     else:
         inputs  = keras.layers.Input(shape=(None, None, pyramid_feature_size))
+        norm_axis = 3
     outputs = inputs
-    for i in range(3):
-        outputs = keras.layers.Conv2D(
-            filters=regression_feature_size,
-            activation='selu',
-            name='pyramid_pose_regression_{}'.format(i),
-            **options
-        )(outputs)
+    #for i in range(3):
+    #    outputs = keras.layers.Conv2D(
+    #        filters=regression_feature_size,
+    #        activation='selu',
+    #        kernel_initializer='lecun_normal',
+    #        name='pyramid_pose_regression_{}'.format(i),
+    #        **options
+    #    )(outputs)
+    #    outputs = keras.layers.BatchNormalization(
+    #        axis=norm_axis
+    #    )(outputs)
 
-    outputs = keras.layers.Dense(num_anchors * num_values, activation='selu', name='pyramid_pose_regression_f1')(outputs)
-    outputs = keras.layers.Dense(num_anchors * num_values, activation='selu', name='pyramid_pose_regression_f2')(outputs)
+    outputs = keras.layers.Dense(num_anchors * num_values, activation='relu', name='pyramid_pose_regression_f1')(outputs)
+    outputs = keras.layers.Dense(num_anchors * num_values, activation='relu', name='pyramid_pose_regression_f2')(outputs)
     #outputs = keras.layers.Dense(num_anchors * num_values, activation='linear', kernel_regularizer=keras.regularizers.l2(0.01),
     #            activity_regularizer=keras.regularizers.l1(0.01), name='pyramid_pose_regression_f2')(outputs)
 
@@ -148,8 +154,6 @@ def default_pose_regression_model(num_values, num_anchors, pyramid_feature_size=
     if keras.backend.image_data_format() == 'channels_first':
         outputs = keras.layers.Permute((2, 3, 1), name='pyramid_regression_permute')(outputs)
     outputs = keras.layers.Reshape((-1, num_values), name='pyramid_pose_regression_reshape')(outputs)
-
-    #outputs = keras.layers.Lambda(print_post)(outputs)
 
     return keras.models.Model(inputs=inputs, outputs=outputs, name=name)
 
