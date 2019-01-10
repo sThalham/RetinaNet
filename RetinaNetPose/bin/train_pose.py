@@ -93,7 +93,7 @@ def create_models(backbone_retinanet, num_classes, weights, multi_gpu=0, freeze_
             'pose': losses.weighted_MSE(),
             'cls': losses.focal()
         },
-        loss_weights=[alpha, beta, gamma],
+        #loss_weights=[alpha, beta, gamma],
         optimizer=keras.optimizers.adam(lr=1e-5, clipnorm=0.001)
     )
 
@@ -318,7 +318,7 @@ def main(args=None):
     # start training
     training_model.fit_generator(
         generator=train_generator,
-        steps_per_epoch=train_iterations,
+        steps_per_epoch=50,
         epochs=args.epochs,
         verbose=1,
         callbacks=callbacks,
