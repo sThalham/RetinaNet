@@ -19,6 +19,8 @@ import keras
 
 from ..utils.compute_overlap import compute_overlap
 
+#np.set_printoptions(threshold=np.nan)
+
 
 class AnchorParameters:
 
@@ -191,37 +193,6 @@ def shift(shape, stride, anchors):
     return all_anchors
 
 
-def pose_anchors_for_shape(
-    image_shape,
-    pyramid_levels=None,
-    anchor_params=None,
-    shapes_callback=None,
-):
-
-    if pyramid_levels is None:
-        pyramid_levels = [3, 4, 5, 6, 7]
-
-    if anchor_params is None:
-        anchor_params = AnchorParameters.default
-
-    if shapes_callback is None:
-        shapes_callback = guess_shapes
-    image_shapes = shapes_callback(image_shape, pyramid_levels)
-
-    # compute anchors over all pyramid levels
-    all_anchors = np.zeros((0, 7))
-    for idx, p in enumerate(pyramid_levels):
-        anchors = generate_pose_anchors(
-            base_size=anchor_params.sizes[idx],
-            ratios=anchor_params.ratios,
-            scales=anchor_params.scales
-        )
-        shifted_anchors = shift_pose(image_shapes[idx], anchor_params.strides[idx], anchors)
-        all_anchors     = np.append(all_anchors, shifted_anchors, axis=0)
-
-    return all_anchors
-
-
 def generate_anchors(base_size=16, ratios=None, scales=None):
     if ratios is None:
         ratios = AnchorParameters.default.ratios
@@ -279,13 +250,14 @@ def bbox_transform(anchors, gt_boxes, mean=None, std=None):
     targets = targets.T
 
     targets = (targets - mean) / std
+    #print('target: ', targets[0, :])
 
     return targets
 
 
 def pose_transform(anchors, gt_poses, mean=None, std=None):
     if mean is None:
-       mean = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+       mean = [0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0]
     if std is None:
         std = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
 
@@ -315,6 +287,7 @@ def pose_transform(anchors, gt_poses, mean=None, std=None):
     targets = targets.T
 
     targets = (targets - mean) / std
-    #print('target: ', targets)
+    #print('t_x: ', targets_x)
+    #print('target: ', targets[0, :])
 
     return targets

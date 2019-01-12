@@ -39,7 +39,7 @@ def bbox_transform_inv(boxes, deltas, mean=None, std=None):
 
 def pose_transform_inv(poses, deltas, mean=None, std=None):
     if mean is None:
-       mean = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+       mean = [0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0]
     if std is None:
         std = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
 

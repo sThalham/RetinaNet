@@ -23,8 +23,10 @@ import json
 import numpy as np
 import itertools
 
+
 def _isArrayLike(obj):
     return hasattr(obj, '__iter__') and hasattr(obj, '__len__')
+
 
 class LinemodGenerator(Generator):
     """ Generate data from the LineMOD dataset.

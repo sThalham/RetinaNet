@@ -20,18 +20,20 @@ from .. import layers
 from ..utils.anchors import AnchorParameters
 from . import assert_training_model
 import tensorflow as tf
+import numpy as np
 
 
 #tf.enable_eager_execution()
+np.set_printoptions(threshold=np.nan)
 
 
 def print_pre(layer):
-    layer = keras.backend.print_tensor(layer, message="pose_regression pre reshape: ")
+    layer = keras.backend.print_tensor(layer, message="pose_regression model.output: ")
     return layer
 
 
 def print_post(layer):
-    layer = keras.backend.print_tensor(layer, message="pose_regression post reshape: ")
+    layer = keras.backend.print_tensor(layer, message="pose_regression model.out: ")
     return layer
 
 
@@ -145,20 +147,31 @@ def default_pose_regression_model(num_values, num_anchors, pyramid_feature_size=
     #    )(outputs)
 
     # shared fc-layer
-    outputs = keras.layers.Dense(num_anchors * num_values, activation='relu', name='pyramid_pose_regression_sharedF')(outputs)
+    outputs = keras.layers.Dense(num_anchors * num_values, activation='tanh', name='pyramid_pose_regression_sharedF')(outputs)
+    ################
     # position layer
-    outputsP = keras.layers.Dense(num_anchors * 3, activation='relu', name='pyramid_pose_regression_positionF')(outputs)
+    outputsP = keras.layers.Dense(num_anchors * 3, activation='tanh', name='pyramid_pose_regression_positionF')(outputs)
+    if keras.backend.image_data_format() == 'channels_first':
+        outputsP = keras.layers.Permute((2, 3, 1), name='pyramid_regression_permute_pos')(outputsP)
+    outputsP = keras.layers.Reshape((-1, 3), name='pyramid_pose_regression_reshape_pos')(outputsP)
+    ###################
     # orientation layer
-    outputsQ = keras.layers.Dense(num_anchors * 4, activation='relu', name='pyramid_pose_regression_orientationF')(outputs)
-    outputs = keras.layers.Concatenate(axis=-1, name='pyramid_pose_regression_concat')([outputsP, outputsQ])
+    outputsQ = keras.layers.Dense(num_anchors * 4, activation='tanh', name='pyramid_pose_regression_orientationF')(outputs)
+    if keras.backend.image_data_format() == 'channels_first':
+        outputsQ = keras.layers.Permute((2, 3, 1), name='pyramid_regression_permute_ori')(outputsQ)
+    outputsQ = keras.layers.Reshape((-1, 4), name='pyramid_pose_regression_reshape_ori')(outputsQ)
+
+    # previous output layers
+    #outputs = keras.layers.Concatenate(axis=-1, name='pyramid_pose_regression_concat')([outputsP, outputsQ])
     #outputs = keras.layers.Dense(num_anchors * num_values, activation='linear', kernel_regularizer=keras.regularizers.l2(0.01),
     #            activity_regularizer=keras.regularizers.l1(0.01), name='pyramid_pose_regression_f2')(outputs)
+    #if keras.backend.image_data_format() == 'channels_first':
+    #    outputs = keras.layers.Permute((2, 3, 1), name='pyramid_regression_permute')(outputs)
+    #outputs = keras.layers.Reshape((-1, num_values), name='pyramid_pose_regression_reshape')(outputs)
 
+    outputs = keras.layers.Concatenate(axis=-1, name='pyramid_pose_regression_concat')([outputsP, outputsQ])
     #outputs = keras.layers.Lambda(print_post)(outputs)
-
-    if keras.backend.image_data_format() == 'channels_first':
-        outputs = keras.layers.Permute((2, 3, 1), name='pyramid_regression_permute')(outputs)
-    outputs = keras.layers.Reshape((-1, num_values), name='pyramid_pose_regression_reshape')(outputs)
+    #print('outputs: ', outputs)
 
     return keras.models.Model(inputs=inputs, outputs=outputs, name=name)
 
@@ -277,8 +290,6 @@ def retinanet_bbox(
     boxes = layers.RegressBoxes(name='boxes')([anchors, regression])
     boxes = layers.ClipBoxes(name='clipped_boxes')([model.inputs[0], boxes])
     poses = layers.RegressPoses(name='poses')([anchors, pose_regression])
-
-    #boxes = keras.layers.Lambda(print_pre)(boxes)
 
     detections = layers.FilterDetections(nms=nms, class_specific_filter=class_specific_filter,
                                          name='filtered_detections')([boxes, poses, classification] + other)

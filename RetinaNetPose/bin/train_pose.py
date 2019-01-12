@@ -84,16 +84,12 @@ def create_models(backbone_retinanet, num_classes, weights, multi_gpu=0, freeze_
     prediction_model = retinanet_bbox(model=model, anchor_params=anchor_params)
 
     # compile model
-    alpha = keras.backend.variable(1.0)
-    beta = keras.backend.variable(10.0)
-    gamma = keras.backend.variable(1.0)
     training_model.compile(
         loss={
             'bbox' : losses.smooth_l1(),
             'pose': losses.weighted_MSE(),
             'cls': losses.focal()
         },
-        #loss_weights=[alpha, beta, gamma],
         optimizer=keras.optimizers.adam(lr=1e-5, clipnorm=0.001)
     )
 
@@ -167,6 +163,7 @@ def create_generators(args, preprocess_image):
         'preprocess_image' : preprocess_image,
     }
 
+    args.random_transform = False
     if args.random_transform:
         transform_generator = random_transform_generator(
             min_rotation=-0.1,
@@ -181,7 +178,8 @@ def create_generators(args, preprocess_image):
             flip_y_chance=0.0,  # flipping image might lead to inconsistencies in regression (test that at some point)
         )
     else:
-        transform_generator = random_transform_generator(flip_x_chance=0.5)
+        #transform_generator = random_transform_generator(flip_x_chance=0.5)
+        transform_generator = random_transform_generator(flip_x_chance=0.0)
 
     if args.dataset_type == 'linemod':
         # import here to prevent unnecessary dependency on cocoapi
@@ -253,8 +251,8 @@ def parse_args(args):
     parser.add_argument('--no-evaluation',    help='Disable per epoch evaluation.', dest='evaluation', action='store_true')
     parser.add_argument('--freeze-backbone',  help='Freeze training of backbone layers.', action='store_true')
     parser.add_argument('--random-transform', help='Randomly transform image and annotations.', action='store_true')
-    parser.add_argument('--image-min-side',   help='Rescale the image so the smallest side is min_side.', type=int, default=800)
-    parser.add_argument('--image-max-side',   help='Rescale the image if the largest side is larger than max_side.', type=int, default=1333)
+    parser.add_argument('--image-min-side',   help='Rescale the image so the smallest side is min_side.', type=int, default=480)
+    parser.add_argument('--image-max-side',   help='Rescale the image if the largest side is larger than max_side.', type=int, default=640)
     parser.add_argument('--config',           help='Path to a configuration parameters .ini file.')
     parser.add_argument('--weighted-average', help='Compute the mAP using the weighted average of precisions among classes.', action='store_true')
 
