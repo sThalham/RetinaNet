@@ -150,10 +150,16 @@ def default_pose_regression_model(num_values, num_anchors, pyramid_feature_size=
     outputs = keras.layers.Dense(num_anchors * num_values, activation='tanh', name='pyramid_pose_regression_sharedF')(outputs)
     ################
     # position layer
-    outputsP = keras.layers.Dense(num_anchors * 3, activation='tanh', name='pyramid_pose_regression_positionF')(outputs)
+    outputsP = keras.layers.Dense(num_anchors * 2, activation='tanh', name='pyramid_pose_regression_positionF')(outputs)
     if keras.backend.image_data_format() == 'channels_first':
         outputsP = keras.layers.Permute((2, 3, 1), name='pyramid_regression_permute_pos')(outputsP)
-    outputsP = keras.layers.Reshape((-1, 3), name='pyramid_pose_regression_reshape_pos')(outputsP)
+    outputsP = keras.layers.Reshape((-1, 2), name='pyramid_pose_regression_reshape_pos')(outputsP)
+    ################
+    # depth layer
+    outputsD = keras.layers.Dense(num_anchors * 1, activation='tanh', name='pyramid_pose_regression_depthF')(outputs)
+    if keras.backend.image_data_format() == 'channels_first':
+        outputsD = keras.layers.Permute((2, 3, 1), name='pyramid_regression_permute_dep')(outputsD)
+    outputsD = keras.layers.Reshape((-1, 1), name='pyramid_pose_regression_reshape_dep')(outputsD)
     ###################
     # orientation layer
     outputsQ = keras.layers.Dense(num_anchors * 4, activation='tanh', name='pyramid_pose_regression_orientationF')(outputs)
@@ -169,7 +175,7 @@ def default_pose_regression_model(num_values, num_anchors, pyramid_feature_size=
     #    outputs = keras.layers.Permute((2, 3, 1), name='pyramid_regression_permute')(outputs)
     #outputs = keras.layers.Reshape((-1, num_values), name='pyramid_pose_regression_reshape')(outputs)
 
-    outputs = keras.layers.Concatenate(axis=-1, name='pyramid_pose_regression_concat')([outputsP, outputsQ])
+    outputs = keras.layers.Concatenate(axis=-1, name='pyramid_pose_regression_concat')([outputsP, outputsD, outputsQ])
     #outputs = keras.layers.Lambda(print_post)(outputs)
     #print('outputs: ', outputs)
 
