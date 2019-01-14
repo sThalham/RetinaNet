@@ -259,7 +259,7 @@ def pose_transform(anchors, gt_poses, mean=None, std=None):
     if mean is None:
        mean = [0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0]
     if std is None:
-        std = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+        std = [0.2, 0.2, 1.0, 1.0, 1.0, 1.0, 1.0]
 
     if isinstance(mean, (list, tuple)):
         mean = np.array(mean)
@@ -274,8 +274,10 @@ def pose_transform(anchors, gt_poses, mean=None, std=None):
     anchor_widths  = anchors[:, 2] - anchors[:, 0]
     anchor_heights = anchors[:, 3] - anchors[:, 1]
 
-    targets_x = (gt_poses[:, 0])
-    targets_y = (gt_poses[:, 1])
+    #targets_x = (gt_poses[:, 0])
+    #targets_y = (gt_poses[:, 1])
+    targets_x = (gt_poses[:, 0] - anchors[:, 0]) / anchor_widths
+    targets_y = (gt_poses[:, 1] - anchors[:, 1]) / anchor_heights
     targets_z = (gt_poses[:, 2])
     targets_rx = (gt_poses[:, 3])
     targets_ry = (gt_poses[:, 4])

@@ -296,6 +296,7 @@ def retinanet_bbox(
     boxes = layers.RegressBoxes(name='boxes')([anchors, regression])
     boxes = layers.ClipBoxes(name='clipped_boxes')([model.inputs[0], boxes])
     poses = layers.RegressPoses(name='poses')([anchors, pose_regression])
+    poses = layers.ClipPoses(name='clipped_poses')([model.inputs[0], poses])
 
     detections = layers.FilterDetections(nms=nms, class_specific_filter=class_specific_filter,
                                          name='filtered_detections')([boxes, poses, classification] + other)

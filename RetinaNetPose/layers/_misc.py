@@ -170,7 +170,7 @@ class RegressPoses(keras.layers.Layer):
         if mean is None:
             mean = [0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0]
         if std is None:
-            std = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+            std = [0.2, 0.2, 1.0, 1.0, 1.0, 1.0, 1.0]
 
         if isinstance(mean, (list, tuple)):
             mean = np.array(mean)
@@ -201,3 +201,28 @@ class RegressPoses(keras.layers.Layer):
         })
 
         return config
+
+
+class ClipPoses(keras.layers.Layer):
+
+    def call(self, inputs, **kwargs):
+        image, poses = inputs
+        shape = keras.backend.cast(keras.backend.shape(image), keras.backend.floatx())
+        if keras.backend.image_data_format() == 'channels_first':
+            height = shape[2]
+            width = shape[3]
+        else:
+            height = shape[1]
+            width = shape[2]
+        x = backend.clip_by_value(poses[:, :, 0], 0, width)
+        y = backend.clip_by_value(poses[:, :, 1], 0, height)
+        z = poses[:, :, 2]
+        rx = poses[:, :, 3]
+        ry = poses[:, :, 4]
+        rz = poses[:, :, 5]
+        rw = poses[:, :, 6]
+
+        return keras.backend.stack([x, y, z, rx, ry, rz, rw], axis=2)
+
+    def compute_output_shape(self, input_shape):
+        return input_shape[1]
