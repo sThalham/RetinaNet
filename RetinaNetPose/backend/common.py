@@ -37,11 +37,11 @@ def bbox_transform_inv(boxes, deltas, mean=None, std=None):
     return pred_boxes
 
 
-def pose_transform_inv(poses, deltas, mean=None, std=None):
+def xy_transform_inv(poses, deltas, mean=None, std=None):
     if mean is None:
-       mean = [0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0]
+       mean = [0.0, 0.0]
     if std is None:
-        std = [0.2, 0.2, 1.0, 1.0, 1.0, 1.0, 1.0]
+        std = [0.2, 0.2]
 
     width = poses[:, :, 2] - poses[:, :, 0]
     height = poses[:, :, 3] - poses[:, :, 1]
@@ -49,21 +49,29 @@ def pose_transform_inv(poses, deltas, mean=None, std=None):
     x = poses[:, :, 0] + (deltas[:, :, 0] * std[0] + mean[0]) * width
     y = poses[:, :, 1] + (deltas[:, :, 1] * std[1] + mean[1]) * height
 
-    #x = deltas[:, :, 0] * std[0] + mean[0]
-    #y = deltas[:, :, 1] * std[1] + mean[1]
-    z = deltas[:, :, 2] * std[2] + mean[2]
+    pred_pose = keras.backend.stack([x, y], axis=2)
+
+    return pred_pose
+
+
+def rotation_transform_inv(poses, deltas, mean=None, std=None):
+    if mean is None:
+       mean = [0.0, 0.0, 0.0, 0.0]
+    if std is None:
+        std = [1.0, 1.0, 1.0, 1.0]
+
     rx = deltas[:, :, 0] * std[0] + mean[0]
     ry = deltas[:, :, 1] * std[1] + mean[1]
     rz = deltas[:, :, 2] * std[2] + mean[2]
     rw = deltas[:, :, 3] * std[3] + mean[3]
 
-    pred_pose = keras.backend.stack([x, y, z, rx, ry, rz, rw], axis=2)
-    #pred_pose = keras.backend.stack([rx, ry, rz, rw], axis=2)
+    pred_pose = keras.backend.stack([rx, ry, rz, rw], axis=2)
 
     return pred_pose
 
 
 def shift(shape, stride, anchors):
+    # shifts anchors
     shift_x = (keras.backend.arange(0, shape[1], dtype=keras.backend.floatx()) + keras.backend.constant(0.5, dtype=keras.backend.floatx())) * stride
     shift_y = (keras.backend.arange(0, shape[0], dtype=keras.backend.floatx()) + keras.backend.constant(0.5, dtype=keras.backend.floatx())) * stride
 
@@ -87,28 +95,3 @@ def shift(shape, stride, anchors):
     shifted_anchors = keras.backend.reshape(shifted_anchors, [k * number_of_anchors, 4])
 
     return shifted_anchors
-
-
-def shift_pose(shape, stride, anchors):
-    shift_x = (keras.backend.arange(0, shape[1], dtype=keras.backend.floatx()) + keras.backend.constant(0.5, dtype=keras.backend.floatx())) * stride
-    shift_y = (keras.backend.arange(0, shape[0], dtype=keras.backend.floatx()) + keras.backend.constant(0.5, dtype=keras.backend.floatx())) * stride
-
-    shift_x, shift_y = meshgrid(shift_x, shift_y)
-    shift_x = keras.backend.reshape(shift_x, [-1])
-    shift_y = keras.backend.reshape(shift_y, [-1])
-
-    shifts = keras.backend.stack([
-        shift_x,
-        shift_y,
-    ], axis=0)
-
-    shifts = keras.backend.transpose(shifts)
-    number_of_anchors = keras.backend.shape(anchors)[0]
-
-    k = keras.backend.shape(shifts)[0]  # number of base points = feat_h * feat_w
-
-    shifted_anchors = keras.backend.reshape(anchors, [1, number_of_anchors, 2]) + keras.backend.cast(keras.backend.reshape(shifts, [k, 1, 4]), keras.backend.floatx())
-    shifted_anchors = keras.backend.reshape(shifted_anchors, [k * number_of_anchors, 2])
-
-    return shifted_anchors
-

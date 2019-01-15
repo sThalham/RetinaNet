@@ -16,30 +16,13 @@ limitations under the License.
 
 import keras
 from . import backend
+import numpy as np
 
 
 def focal(alpha=0.25, gamma=2.0):
-    """ Create a functor for computing the focal loss.
 
-    Args
-        alpha: Scale the focal weight with alpha.
-        gamma: Take the power of the focal weight with gamma.
-
-    Returns
-        A functor that computes the focal loss using the alpha and gamma.
-    """
     def _focal(y_true, y_pred):
-        """ Compute the focal loss given the target tensor and the predicted tensor.
 
-        As defined in https://arxiv.org/abs/1708.02002
-
-        Args
-            y_true: Tensor of target data from the generator with shape (B, N, num_classes).
-            y_pred: Tensor of predicted data from the network with shape (B, N, num_classes).
-
-        Returns
-            The focal loss of y_pred w.r.t. y_true.
-        """
         labels         = y_true[:, :, :-1]
         anchor_state   = y_true[:, :, -1]  # -1 for ignore, 0 for background, 1 for object
         classification = y_pred
@@ -68,26 +51,11 @@ def focal(alpha=0.25, gamma=2.0):
 
 
 def smooth_l1(sigma=3.0):
-    """ Create a smooth L1 loss functor.
 
-    Args
-        sigma: This argument defines the point where the loss changes from L2 to L1.
-
-    Returns
-        A functor for computing the smooth L1 loss given target data and predicted data.
-    """
     sigma_squared = sigma ** 2
 
     def _smooth_l1(y_true, y_pred):
-        """ Compute the smooth L1 loss of y_pred w.r.t. y_true.
 
-        Args
-            y_true: Tensor from the generator of shape (B, N, 5). The last value for each box is the state of the anchor (ignore, negative, positive).
-            y_pred: Tensor from the network of shape (B, N, 4).
-
-        Returns
-            The smooth L1 loss of y_pred w.r.t. y_true.
-        """
         # separate target and state
         regression        = y_pred
         regression_target = y_true[:, :, :-1]
@@ -118,31 +86,13 @@ def smooth_l1(sigma=3.0):
 
 
 def weighted_MSE(alpha=0.7):
-    """ Create a functor for computing the weighted MSE.
-
-        Args
-            alpha: Scale the focal weight with alpha.
-
-        Returns
-            A functor that computes the weighted MSE using the alpha.
-        """
 
     def _wMSE(y_true, y_pred):
-        """ Compute the weighted MSE given the target tensor and the predicted tensor.
 
-        Args
-            y_true: Tensor from the generator of shape (B, N, 7). The last value for each box is the state of the anchor (ignore, negative, positive).
-            y_pred: Tensor from the network of shape (B, N, 6).
-
-        Returns
-            The weighted MSE loss of y_pred w.r.t. y_true.
-        """
         #### separate target and state
         regression        = y_pred
         regression_target = y_true[:, :, :-1]
         anchor_state      = y_true[:, :, -1]
-
-
 
         #### filter out "ignore" anchors
         indices           = backend.where(keras.backend.equal(anchor_state, 1))
@@ -158,3 +108,31 @@ def weighted_MSE(alpha=0.7):
         return keras.backend.sum(regression_loss) / normalizer
 
     return _wMSE
+
+
+def center_loss():
+
+    def _c_xy(y_true, y_pred, bboxes):
+
+        #### separate target and state
+        regression        = y_pred
+        regression_target = y_true[:, :, :-1]
+        anchor_state      = y_true[:, :, -1]
+
+        #### filter out "ignore" anchors
+        indices           = backend.where(keras.backend.equal(anchor_state, 1))
+        regression        = backend.gather_nd(regression, indices)
+        regression_target = backend.gather_nd(regression_target, indices)
+
+        cx = bboxes[:, :, 0]
+        cy = bboxes[:, :, 1]
+        width = bboxes[:, :, 2] - bboxes[:, :, 0]
+        height = bboxes[:, :, 3] - bboxes[:, :, 1]
+
+        regression_loss = abs((regression_target[0] - cx)/width - (regression[0] - cx)/width) + abs((regression_target[1] - cx)/width - (regression[1] - cx)/width)
+
+        normalizer = keras.backend.maximum(1, keras.backend.shape(indices)[0])
+        normalizer = keras.backend.cast(normalizer, dtype=keras.backend.floatx())
+        return keras.backend.sum(regression_loss) / normalizer
+
+    return _c_xy

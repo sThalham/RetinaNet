@@ -164,13 +164,13 @@ class ClipBoxes(keras.layers.Layer):
         return input_shape[1]
 
 
-class RegressPoses(keras.layers.Layer):
+class RegressXY(keras.layers.Layer):
 
     def __init__(self, mean=None, std=None, *args, **kwargs):
         if mean is None:
-            mean = [0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0]
+            mean = [0.0, 0.0]
         if std is None:
-            std = [0.2, 0.2, 1.0, 1.0, 1.0, 1.0, 1.0]
+            std = [0.2, 0.2]
 
         if isinstance(mean, (list, tuple)):
             mean = np.array(mean)
@@ -184,17 +184,17 @@ class RegressPoses(keras.layers.Layer):
 
         self.mean = mean
         self.std  = std
-        super(RegressPoses, self).__init__(*args, **kwargs)
+        super(RegressXY, self).__init__(*args, **kwargs)
 
     def call(self, inputs, **kwargs):
         poses, regression = inputs
-        return backend.pose_transform_inv(poses, regression, mean=self.mean, std=self.std)
+        return backend.xy_transform_inv(poses, regression, mean=self.mean, std=self.std)
 
     def compute_output_shape(self, input_shape):
         return input_shape[0]
 
     def get_config(self):
-        config = super(RegressPose, self).get_config()
+        config = super(RegressXY, self).get_config()
         config.update({
             'mean': self.mean.tolist(),
             'std': self.std.tolist(),
@@ -203,7 +203,7 @@ class RegressPoses(keras.layers.Layer):
         return config
 
 
-class ClipPoses(keras.layers.Layer):
+class ClipXY(keras.layers.Layer):
 
     def call(self, inputs, **kwargs):
         image, poses = inputs
@@ -216,13 +216,47 @@ class ClipPoses(keras.layers.Layer):
             width = shape[2]
         x = backend.clip_by_value(poses[:, :, 0], 0, width)
         y = backend.clip_by_value(poses[:, :, 1], 0, height)
-        z = poses[:, :, 2]
-        rx = poses[:, :, 3]
-        ry = poses[:, :, 4]
-        rz = poses[:, :, 5]
-        rw = poses[:, :, 6]
 
-        return keras.backend.stack([x, y, z, rx, ry, rz, rw], axis=2)
+        return keras.backend.stack([x, y], axis=2)
 
     def compute_output_shape(self, input_shape):
         return input_shape[1]
+
+
+class RegressRotation(keras.layers.Layer):
+
+    def __init__(self, mean=None, std=None, *args, **kwargs):
+        if mean is None:
+            mean = [0.0, 0.0, 0.0, 0.0]
+        if std is None:
+            std = [1.0, 1.0, 1.0, 1.0]
+
+        if isinstance(mean, (list, tuple)):
+            mean = np.array(mean)
+        elif not isinstance(mean, np.ndarray):
+            raise ValueError('Expected mean to be a np.ndarray, list or tuple. Received: {}'.format(type(mean)))
+
+        if isinstance(std, (list, tuple)):
+            std = np.array(std)
+        elif not isinstance(std, np.ndarray):
+            raise ValueError('Expected std to be a np.ndarray, list or tuple. Received: {}'.format(type(std)))
+
+        self.mean = mean
+        self.std  = std
+        super(RegressRotation, self).__init__(*args, **kwargs)
+
+    def call(self, inputs, **kwargs):
+        poses, regression = inputs
+        return backend.rotation_transform_inv(poses, regression, mean=self.mean, std=self.std)
+
+    def compute_output_shape(self, input_shape):
+        return input_shape[0]
+
+    def get_config(self):
+        config = super(RegressRotation, self).get_config()
+        config.update({
+            'mean': self.mean.tolist(),
+            'std': self.std.tolist(),
+        })
+
+        return config

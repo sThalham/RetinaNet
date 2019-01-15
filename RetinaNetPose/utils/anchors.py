@@ -21,7 +21,6 @@ from ..utils.compute_overlap import compute_overlap
 
 #np.set_printoptions(threshold=np.nan)
 
-
 class AnchorParameters:
 
     def __init__(self, sizes, strides, ratios, scales):
@@ -62,7 +61,8 @@ def anchor_targets_bbox(
 
     regression_batch  = np.zeros((batch_size, anchors.shape[0], 4 + 1), dtype=keras.backend.floatx())
     labels_batch      = np.zeros((batch_size, anchors.shape[0], num_classes + 1), dtype=keras.backend.floatx())
-    pose_regression_batch  = np.zeros((batch_size, anchors.shape[0], 7 + 1), dtype=keras.backend.floatx())
+    xy_regression_batch  = np.zeros((batch_size, anchors.shape[0], 2 + 1), dtype=keras.backend.floatx())
+    rotation_regression_batch = np.zeros((batch_size, anchors.shape[0], 4 + 1), dtype=keras.backend.floatx())
 
     # compute targets
     for index, (image, annotations) in enumerate(zip(image_group, annotations_group)):
@@ -76,13 +76,17 @@ def anchor_targets_bbox(
             regression_batch[index, ignore_indices, -1]   = -1
             regression_batch[index, positive_indices, -1] = 1
 
-            pose_regression_batch[index, ignore_indices, -1]   = -1
-            pose_regression_batch[index, positive_indices, -1] = 1
+            xy_regression_batch[index, ignore_indices, -1]   = -1
+            xy_regression_batch[index, positive_indices, -1] = 1
+
+            rotation_regression_batch[index, ignore_indices, -1] = -1
+            rotation_regression_batch[index, positive_indices, -1] = 1
 
             # compute target class labels
             labels_batch[index, positive_indices, annotations['labels'][argmax_overlaps_inds[positive_indices]].astype(int)] = 1
             regression_batch[index, :, :-1] = bbox_transform(anchors, annotations['bboxes'][argmax_overlaps_inds, :])
-            pose_regression_batch[index, :, :-1] = pose_transform(anchors, annotations['poses'][argmax_overlaps_inds, :])
+            xy_regression_batch[index, :, :-1] = xy_transform(anchors, annotations['poses'][argmax_overlaps_inds, :])
+            rotation_regression_batch[index, :, :-1] = rotation_transform(anchors, annotations['poses'][argmax_overlaps_inds, :])
 
         if image.shape:
             anchors_centers = np.vstack([(anchors[:, 0] + anchors[:, 2]) / 2, (anchors[:, 1] + anchors[:, 3]) / 2]).T
@@ -90,9 +94,10 @@ def anchor_targets_bbox(
 
             labels_batch[index, indices, -1]     = -1
             regression_batch[index, indices, -1] = -1
-            pose_regression_batch[index, indices, -1] = -1
+            xy_regression_batch[index, indices, -1] = -1
+            rotation_regression_batch[index, indices, -1] = -1
 
-    return regression_batch, pose_regression_batch, labels_batch
+    return regression_batch, xy_regression_batch, rotation_regression_batch, labels_batch
 
 
 def compute_gt_annotations(
@@ -250,16 +255,15 @@ def bbox_transform(anchors, gt_boxes, mean=None, std=None):
     targets = targets.T
 
     targets = (targets - mean) / std
-    #print('target: ', targets[0, :])
 
     return targets
 
 
-def pose_transform(anchors, gt_poses, mean=None, std=None):
+def xy_transform(anchors, gt_poses, mean=None, std=None):
     if mean is None:
-       mean = [0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0]
+       mean = [0.0, 0.0]
     if std is None:
-        std = [0.2, 0.2, 1.0, 1.0, 1.0, 1.0, 1.0]
+        std = [0.2, 0.2]
 
     if isinstance(mean, (list, tuple)):
         mean = np.array(mean)
@@ -274,22 +278,43 @@ def pose_transform(anchors, gt_poses, mean=None, std=None):
     anchor_widths  = anchors[:, 2] - anchors[:, 0]
     anchor_heights = anchors[:, 3] - anchors[:, 1]
 
-    #targets_x = (gt_poses[:, 0])
-    #targets_y = (gt_poses[:, 1])
     targets_x = (gt_poses[:, 0] - anchors[:, 0]) / anchor_widths
     targets_y = (gt_poses[:, 1] - anchors[:, 1]) / anchor_heights
-    targets_z = (gt_poses[:, 2])
+
+    targets = np.stack((targets_x, targets_y))
+    targets = targets.T
+
+    targets = (targets - mean) / std
+    #print('xy target: ', targets[0, :])
+
+    return targets
+
+
+def rotation_transform(anchors, gt_poses, mean=None, std=None):
+    if mean is None:
+       mean = [0.0, 0.0, 0.0, 0.0]
+    if std is None:
+        std = [1.0, 1.0, 1.0, 1.0]
+
+    if isinstance(mean, (list, tuple)):
+        mean = np.array(mean)
+    elif not isinstance(mean, np.ndarray):
+        raise ValueError('Expected mean to be a np.ndarray, list or tuple. Received: {}'.format(type(mean)))
+
+    if isinstance(std, (list, tuple)):
+        std = np.array(std)
+    elif not isinstance(std, np.ndarray):
+        raise ValueError('Expected std to be a np.ndarray, list or tuple. Received: {}'.format(type(std)))
+
     targets_rx = (gt_poses[:, 3])
     targets_ry = (gt_poses[:, 4])
     targets_rz = (gt_poses[:, 5])
     targets_rw = (gt_poses[:, 6])
 
-    targets = np.stack((targets_x, targets_y, targets_z, targets_rx, targets_ry, targets_rz, targets_rw))
-    #targets = np.stack((targets_rx, targets_ry, targets_rz, targets_rw))
+    targets = np.stack((targets_rx, targets_ry, targets_rz, targets_rw))
     targets = targets.T
 
     targets = (targets - mean) / std
-    #print('t_x: ', targets_x)
-    #print('target: ', targets[0, :])
+    #print('rotation target: ', targets[0, :])
 
     return targets
