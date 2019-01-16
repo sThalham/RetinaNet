@@ -54,9 +54,22 @@ def xy_transform_inv(poses, deltas, mean=None, std=None):
     return pred_pose
 
 
+def depth_transform_inv(poses, deltas, mean=None, std=None):
+    if mean is None:
+        mean = [0.0]
+    if std is None:
+        std = [1.0]
+
+    z = deltas[:, :, 2] * std[0] + mean[0]
+
+    pred_pose = keras.backend.stack([z], axis=2)
+
+    return pred_pose
+
+
 def rotation_transform_inv(poses, deltas, mean=None, std=None):
     if mean is None:
-       mean = [0.0, 0.0, 0.0, 0.0]
+        mean = [0.0, 0.0, 0.0, 0.0]
     if std is None:
         std = [1.0, 1.0, 1.0, 1.0]
 

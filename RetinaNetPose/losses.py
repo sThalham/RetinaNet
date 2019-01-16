@@ -129,7 +129,7 @@ def center_loss():
         width = bboxes[:, :, 2] - bboxes[:, :, 0]
         height = bboxes[:, :, 3] - bboxes[:, :, 1]
 
-        regression_loss = abs((regression_target[0] - cx)/width - (regression[0] - cx)/width) + abs((regression_target[1] - cx)/width - (regression[1] - cx)/width)
+        regression_loss = abs((regression_target[0] - cx)/width - (regression[0] - cx)/width) + abs((regression_target[1] - cy)/height - (regression[1] - cy)/height)
 
         normalizer = keras.backend.maximum(1, keras.backend.shape(indices)[0])
         normalizer = keras.backend.cast(normalizer, dtype=keras.backend.floatx())
