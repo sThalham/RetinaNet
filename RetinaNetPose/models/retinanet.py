@@ -27,13 +27,13 @@ import numpy as np
 np.set_printoptions(threshold=np.nan)
 
 
-def print_pre(layer):
-    layer = keras.backend.print_tensor(layer, message="pose_regression model.output: ")
+def print_P(layer):
+    layer = keras.backend.print_tensor(layer, message="position.output: ")
     return layer
 
 
-def print_post(layer):
-    layer = keras.backend.print_tensor(layer, message="pose_regression model.out: ")
+def print_Q(layer):
+    layer = keras.backend.print_tensor(layer, message="rotation.out: ")
     return layer
 
 
@@ -124,13 +124,16 @@ def default_pose_regression_model(num_values, num_anchors, pyramid_feature_size=
         inputs  = keras.layers.Input(shape=(None, None, pyramid_feature_size))
 
     outputs = inputs
-    outputs = keras.layers.Dense(num_anchors * 6, activation='tanh', name='pyramid_pose_regression_sharedF')(outputs)
+    outputs = keras.layers.Dense(num_anchors * 6, activation='relu', name='pyramid_pose_regression_sharedF')(outputs)
     ################
     # position layer
-    outputsP = keras.layers.Dense(num_anchors * 2, activation='tanh', name='pyramid_pose_regression_positionF')(outputs)
+    outputsP = keras.layers.Dense(num_anchors * 2, activation='relu', name='pyramid_pose_regression_positionF')(outputs)
     if keras.backend.image_data_format() == 'channels_first':
         outputsP = keras.layers.Permute((2, 3, 1), name='pyramid_regression_permute_pos')(outputsP)
     outputsP = keras.layers.Reshape((-1, 2), name='pyramid_pose_regression_reshape_pos')(outputsP)
+
+    #outputsP = keras.layers.Lambda(print_P)(outputsP)
+
     ################
     # depth layer
     #outputsD = keras.layers.Dense(num_anchors * 1, activation='tanh', name='pyramid_pose_regression_depthF')(outputs)
@@ -139,10 +142,12 @@ def default_pose_regression_model(num_values, num_anchors, pyramid_feature_size=
     #outputsD = keras.layers.Reshape((-1, 1), name='pyramid_pose_regression_reshape_dep')(outputsD)
     ###################
     # orientation layer
-    outputsQ = keras.layers.Dense(num_anchors * 4, activation='tanh', name='pyramid_pose_regression_orientationF')(outputs)
+    outputsQ = keras.layers.Dense(num_anchors * 4, activation='relu', name='pyramid_pose_regression_orientationF')(outputs)
     if keras.backend.image_data_format() == 'channels_first':
         outputsQ = keras.layers.Permute((2, 3, 1), name='pyramid_regression_permute_ori')(outputsQ)
     outputsQ = keras.layers.Reshape((-1, 4), name='pyramid_pose_regression_reshape_ori')(outputsQ)
+
+    #outputsQ = keras.layers.Lambda(print_Q)(outputsQ)
 
     # previous output layers
     #outputs = keras.layers.Concatenate(axis=-1, name='pyramid_pose_regression_concat')([outputsP, outputsQ])
