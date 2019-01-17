@@ -60,7 +60,7 @@ def depth_transform_inv(poses, deltas, mean=None, std=None):
     if std is None:
         std = [1.0]
 
-    z = deltas[:, :, 2] * std[0] + mean[0]
+    z = deltas[:, :, 0] * std[0] + mean[0]
 
     pred_pose = keras.backend.stack([z], axis=2)
 
