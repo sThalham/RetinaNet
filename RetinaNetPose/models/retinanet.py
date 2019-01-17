@@ -145,7 +145,7 @@ def default_pose_regression_model(num_values, num_anchors, pyramid_feature_size=
     outputsQ = keras.layers.Reshape((-1, 4), name='pyramid_pose_regression_reshape_ori')(outputsQ)
     #outputsQ = keras.layers.Lambda(print_Q)(outputsQ)
 
-    return keras.models.Model(inputs=inputs, outputs=outputsP, name='xy_regression_submodel'), keras.models.Model(inputs=inputs, outputs=outputsQ, name='depth_regression_submodel'), keras.models.Model(inputs=inputs, outputs=outputsQ, name='rotation_regression_submodel')
+    return keras.models.Model(inputs=inputs, outputs=outputsP, name='xy_regression_submodel'), keras.models.Model(inputs=inputs, outputs=outputsD, name='depth_regression_submodel'), keras.models.Model(inputs=inputs, outputs=outputsQ, name='rotation_regression_submodel')
 
 
 '''

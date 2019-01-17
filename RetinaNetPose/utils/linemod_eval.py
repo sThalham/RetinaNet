@@ -44,7 +44,7 @@ def evaluate_linemod(generator, model, threshold=0.05):
             image = image.transpose((2, 0, 1))
 
         # run network
-        boxes, xys, quats, scores, labels = model.predict_on_batch(np.expand_dims(image, axis=0))
+        boxes, xys, deps, quats, scores, labels = model.predict_on_batch(np.expand_dims(image, axis=0))
         #print('boxes: ', boxes)
         #print('poses: ', poses)
         #print('scores: ', scores)
@@ -58,7 +58,7 @@ def evaluate_linemod(generator, model, threshold=0.05):
         boxes[:, :, 3] -= boxes[:, :, 1]
 
         # compute predicted labels and scores
-        for box, xy, quat, score, label in zip(boxes[0], xys[0], quats[0], scores[0], labels[0]):
+        for box, xy, dep, quat, score, label in zip(boxes[0], xys[0], deps[0], quats[0], scores[0], labels[0]):
             # scores are sorted, so we can break
             if score < threshold:
                 break
@@ -69,7 +69,7 @@ def evaluate_linemod(generator, model, threshold=0.05):
                 'category_id' : generator.label_to_inv_label(label),
                 'score'       : float(score),
                 'bbox'        : box.tolist(),
-                'pose'        : xy.tolist() + quat.tolist()
+                'pose'        : xy.tolist() + dep.tolist() + quat.tolist()
             }
 
             # append detection to results
