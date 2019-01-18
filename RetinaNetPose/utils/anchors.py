@@ -299,7 +299,7 @@ def xy_transform(anchors, gt_poses, mean=None, std=None):
 
 def depth_transform(anchors, gt_poses, mean=None, std=None):
     if mean is None:
-       mean = [0.0]
+       mean = [1.0]
     if std is None:
         std = [1.0]
 

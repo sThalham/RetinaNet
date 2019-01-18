@@ -227,7 +227,7 @@ class RegressDepths(keras.layers.Layer):
 
     def __init__(self, mean=None, std=None, *args, **kwargs):
         if mean is None:
-            mean = [0.0]
+            mean = [1.0]
         if std is None:
             std = [1.0]
 
