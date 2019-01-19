@@ -221,8 +221,8 @@ def default_submodels(num_classes, num_anchors):
 
     return [
         ('bbox', default_regression_model(4, num_anchors)),
-        ('xy_reg', default_position_regression_model(2, num_anchors)),
-        ('dep_est', default_depth_regression_model(1, num_anchors)),
+        #('xy_reg', default_position_regression_model(2, num_anchors)),
+        #('dep_est', default_depth_regression_model(1, num_anchors)),
         ('rotation', default_rotation_regression_model(4, num_anchors)),
         ('cls', default_classification_model(num_classes, num_anchors))
     ]
@@ -297,21 +297,21 @@ def retinanet_bbox(
     anchors = __build_anchors(anchor_params, features)
 
     regression = model.outputs[0]
-    xy_regression = model.outputs[1]
-    depth_regression = model.outputs[2]
-    orientation_regression = model.outputs[3]
-    classification = model.outputs[4]
-    other = model.outputs[5:]
+    #xy_regression = model.outputs[1]
+    #depth_regression = model.outputs[2]
+    orientation_regression = model.outputs[1]
+    classification = model.outputs[2]
+    other = model.outputs[3:]
 
     # apply predicted regression to anchors
     boxes = layers.RegressBoxes(name='boxes')([anchors, regression])
     boxes = layers.ClipBoxes(name='clipped_boxes')([model.inputs[0], boxes])
-    xy = layers.RegressXY(name='xy')([anchors, xy_regression])
-    xy = layers.ClipXY(name='clipped_xy')([model.inputs[0], xy])
-    depths = layers.RegressDepths(name='depths')([anchors, depth_regression])
+    #xy = layers.RegressXY(name='xy')([anchors, xy_regression])
+    #xy = layers.ClipXY(name='clipped_xy')([model.inputs[0], xy])
+    #depths = layers.RegressDepths(name='depths')([anchors, depth_regression])
     rotations = layers.RegressRotation(name='rotations')([anchors, orientation_regression])
 
     detections = layers.FilterDetections(nms=nms, class_specific_filter=class_specific_filter,
-                                         name='filtered_detections')([boxes, xy, depths, rotations, classification] + other)
+                                         name='filtered_detections')([boxes, rotations, classification] + other)
 
     return keras.models.Model(inputs=model.inputs, outputs=detections, name=name)

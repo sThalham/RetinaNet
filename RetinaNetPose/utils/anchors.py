@@ -77,11 +77,11 @@ def anchor_targets_bbox(
             regression_batch[index, ignore_indices, -1]   = -1
             regression_batch[index, positive_indices, -1] = 1
 
-            xy_regression_batch[index, ignore_indices, -1]   = -1
-            xy_regression_batch[index, positive_indices, -1] = 1
+            #xy_regression_batch[index, ignore_indices, -1]   = -1
+            #xy_regression_batch[index, positive_indices, -1] = 1
 
-            depth_regression_batch[index, ignore_indices, -1] = -1
-            depth_regression_batch[index, positive_indices, -1] = 1
+            #depth_regression_batch[index, ignore_indices, -1] = -1
+            #depth_regression_batch[index, positive_indices, -1] = 1
 
             rotation_regression_batch[index, ignore_indices, -1] = -1
             rotation_regression_batch[index, positive_indices, -1] = 1
@@ -89,8 +89,8 @@ def anchor_targets_bbox(
             # compute target class labels
             labels_batch[index, positive_indices, annotations['labels'][argmax_overlaps_inds[positive_indices]].astype(int)] = 1
             regression_batch[index, :, :-1] = bbox_transform(anchors, annotations['bboxes'][argmax_overlaps_inds, :])
-            xy_regression_batch[index, :, :-1] = xy_transform(anchors, annotations['poses'][argmax_overlaps_inds, :])
-            depth_regression_batch[index, :, :-1] = depth_transform(anchors, annotations['poses'][argmax_overlaps_inds, :])
+            #xy_regression_batch[index, :, :-1] = xy_transform(anchors, annotations['poses'][argmax_overlaps_inds, :])
+            #depth_regression_batch[index, :, :-1] = depth_transform(anchors, annotations['poses'][argmax_overlaps_inds, :])
             rotation_regression_batch[index, :, :-1] = rotation_transform(anchors, annotations['poses'][argmax_overlaps_inds, :])
 
         if image.shape:
@@ -99,11 +99,11 @@ def anchor_targets_bbox(
 
             labels_batch[index, indices, -1]     = -1
             regression_batch[index, indices, -1] = -1
-            xy_regression_batch[index, indices, -1] = -1
-            depth_regression_batch[index, indices, -1] = -1
+            #xy_regression_batch[index, indices, -1] = -1
+            #depth_regression_batch[index, indices, -1] = -1
             rotation_regression_batch[index, indices, -1] = -1
 
-    return regression_batch, xy_regression_batch, depth_regression_batch, rotation_regression_batch, labels_batch
+    return regression_batch, rotation_regression_batch, labels_batch
 
 
 def compute_gt_annotations(
