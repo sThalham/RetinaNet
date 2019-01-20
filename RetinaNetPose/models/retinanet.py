@@ -176,11 +176,11 @@ def default_rotation_regression_model(num_values, num_anchors, pyramid_feature_s
 
     outputs = inputs
     outputs = keras.layers.Dense(num_anchors * num_values, activation='relu', name='pyramid_rotation_regression_sharedF')(outputs)
-    outputs = keras.layers.Dense(num_anchors * num_values, name='pyramid_rotation_regression_orientationF')(outputs)
+    outputs = keras.layers.Dense(num_anchors * num_values, activation='relu', name='pyramid_rotation_regression_orientationF')(outputs)
     if keras.backend.image_data_format() == 'channels_first':
         outputs = keras.layers.Permute((2, 3, 1), name='pyramid_regression_permute_ori')(outputs)
     outputs = keras.layers.Reshape((-1, num_values), name='pyramid_rotation_regression_reshape')(outputs)
-    #outputs = keras.layers.BatchNormalization(axis=2)(outputs)
+    outputs = keras.layers.BatchNormalization(axis=2)(outputs)
     #print(outputs)
     #outputs = keras.layers.Lambda(print_Q)(outputs)
 
