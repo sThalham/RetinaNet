@@ -1,5 +1,6 @@
 from __future__ import print_function
 import sys
+import keras
 
 
 class Backbone(object):
@@ -14,6 +15,7 @@ class Backbone(object):
             'UpsampleLike'     : layers.UpsampleLike,
             'PriorProbability' : initializers.PriorProbability,
             'RegressBoxes'     : layers.RegressBoxes,
+            'RegressRotation'  : layers.RegressRotation,
             'FilterDetections' : layers.FilterDetections,
             'Anchors'          : layers.Anchors,
             'ClipBoxes'        : layers.ClipBoxes,

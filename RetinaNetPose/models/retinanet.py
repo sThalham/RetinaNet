@@ -14,18 +14,28 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import keras
-import keras_resnet
+
 from .. import initializers
 from .. import layers
 from ..utils.anchors import AnchorParameters
 from . import assert_training_model
 import tensorflow as tf
 import numpy as np
+import keras
 
 
 #tf.enable_eager_execution()
 np.set_printoptions(threshold=np.nan)
+
+
+class l2_norm(keras.layers.Layer):
+
+    def call(self, inputs, **kwargs):
+
+        return keras.backend.l2_normalize(inputs, axis=2)
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
 
 
 def print_P(layer):
@@ -182,8 +192,10 @@ def default_rotation_regression_model(num_values, num_anchors, pyramid_feature_s
         outputs = keras.layers.Permute((2, 3, 1), name='pyramid_regression_permute_ori')(outputs)
     outputs = keras.layers.Reshape((-1, num_values), name='pyramid_rotation_regression_reshape')(outputs)
     #print(outputs)
-    outputs = keras.layers.Lambda(lambda x: keras.backend.l2_normalize(x, axis=2))(outputs)
+    #outputs = keras.layers.Lambda(lambda x: keras.backend.l2_normalize(x, axis=2))(outputs)
     #outputs = keras.layers.Lambda(lambda x: tf.nn.l2_normalize(x, axis=2, epsilon=0.0, name='pyramid_rotation_l2norm'))(outputs)
+    outputs = l2_norm(name='rotation_l2_norm')(outputs)
+
     #outputs = keras.layers.Lambda(print_Q)(outputs)
 
     return keras.models.Model(inputs=inputs, outputs=outputs, name=name)
