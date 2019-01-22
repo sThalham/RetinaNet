@@ -11,6 +11,7 @@ class Backbone(object):
         from .. import layers
         from .. import losses
         from .. import initializers
+        from . import retinanet
         self.custom_objects = {
             'UpsampleLike'     : layers.UpsampleLike,
             'PriorProbability' : initializers.PriorProbability,
@@ -22,6 +23,7 @@ class Backbone(object):
             '_smooth_l1'       : losses.smooth_l1(),
             '_wMSE': losses.weighted_MSE(),
             '_focal'           : losses.focal(),
+            'l2_norm': retinanet.l2_norm,
         }
 
         self.backbone = backbone
