@@ -30,6 +30,8 @@ class ResNetBackbone(Backbone):
 
     def __init__(self, backbone):
         super(ResNetBackbone, self).__init__(backbone)
+        #self.custom_objects = keras_resnet.custom_objects.copy()
+        #self.custom_objects.update(self.custom_objects)
         self.custom_objects.update(keras_resnet.custom_objects)
 
     def retinanet(self, *args, **kwargs):

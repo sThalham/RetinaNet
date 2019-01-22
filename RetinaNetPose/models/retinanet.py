@@ -15,6 +15,7 @@ limitations under the License.
 """
 
 import keras
+import keras_resnet
 from .. import initializers
 from .. import layers
 from ..utils.anchors import AnchorParameters
@@ -180,7 +181,7 @@ def default_rotation_regression_model(num_values, num_anchors, pyramid_feature_s
     if keras.backend.image_data_format() == 'channels_first':
         outputs = keras.layers.Permute((2, 3, 1), name='pyramid_regression_permute_ori')(outputs)
     outputs = keras.layers.Reshape((-1, num_values), name='pyramid_rotation_regression_reshape')(outputs)
-    outputs = keras.layers.BatchNormalization(axis=2)(outputs)
+    outputs = keras_resnet.layers.BatchNormalization(axis=2, freeze=False)(outputs)
     #print(outputs)
     #outputs = keras.layers.Lambda(print_Q)(outputs)
 
