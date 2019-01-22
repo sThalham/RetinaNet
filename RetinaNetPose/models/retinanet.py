@@ -181,8 +181,9 @@ def default_rotation_regression_model(num_values, num_anchors, pyramid_feature_s
     if keras.backend.image_data_format() == 'channels_first':
         outputs = keras.layers.Permute((2, 3, 1), name='pyramid_regression_permute_ori')(outputs)
     outputs = keras.layers.Reshape((-1, num_values), name='pyramid_rotation_regression_reshape')(outputs)
-    outputs = keras_resnet.layers.BatchNormalization(axis=2, freeze=False)(outputs)
     #print(outputs)
+    outputs = keras.layers.Lambda(lambda x: keras.backend.l2_normalize(x, axis=2))(outputs)
+    #outputs = keras.layers.Lambda(lambda x: tf.nn.l2_normalize(x, axis=2, epsilon=0.0, name='pyramid_rotation_l2norm'))(outputs)
     #outputs = keras.layers.Lambda(print_Q)(outputs)
 
     return keras.models.Model(inputs=inputs, outputs=outputs, name=name)
