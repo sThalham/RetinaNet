@@ -17,6 +17,8 @@ limitations under the License.
 import keras
 from . import backend
 import numpy as np
+import transforms3d as tf3d
+import pyquaternion
 
 
 def focal(alpha=0.25, gamma=2.0):
@@ -130,6 +132,28 @@ def center_loss():
         height = bboxes[:, :, 3] - bboxes[:, :, 1]
 
         regression_loss = abs((regression_target[0] - cx)/width - (regression[0] - cx)/width) + abs((regression_target[1] - cy)/height - (regression[1] - cy)/height)
+
+        normalizer = keras.backend.maximum(1, keras.backend.shape(indices)[0])
+        normalizer = keras.backend.cast(normalizer, dtype=keras.backend.floatx())
+        return keras.backend.sum(regression_loss) / normalizer
+
+    return _c_xy
+
+
+def angle_vec():
+
+    def ang_true_pred(y_true, y_pred):
+        #### separate target and state
+        regression = y_pred
+        regression_target = y_true[:, :, :-1]
+        anchor_state = y_true[:, :, -1]
+
+        #### filter out "ignore" anchors
+        indices = backend.where(keras.backend.equal(anchor_state, 1))
+        regression = backend.gather_nd(regression, indices)
+        regression_target = backend.gather_nd(regression_target, indices)
+
+        regression_loss = pyquaternion.sym_distance(regression, regression_target)
 
         normalizer = keras.backend.maximum(1, keras.backend.shape(indices)[0])
         normalizer = keras.backend.cast(normalizer, dtype=keras.backend.floatx())
