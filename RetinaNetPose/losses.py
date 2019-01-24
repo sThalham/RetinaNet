@@ -17,8 +17,6 @@ limitations under the License.
 import keras
 from . import backend
 import numpy as np
-import transforms3d as tf3d
-import pyquaternion
 import tensorflow as tf
 
 

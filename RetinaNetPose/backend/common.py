@@ -73,14 +73,20 @@ def rotation_transform_inv(poses, deltas, mean=None, std=None):
     if std is None:
         std = [1.0, 1.0, 1.0, 1.0]
 
-    rx = deltas[:, :, 0] * std[0] + mean[0]
-    ry = deltas[:, :, 1] * std[1] + mean[1]
-    rz = deltas[:, :, 2] * std[2] + mean[2]
-    rw = deltas[:, :, 3] * std[3] + mean[3]
+    subTensors = []
+    for i in range(0, keras.backend.int_shape(deltas)[3]):
+        rx = deltas[:, :, 0, i] * std[0] + mean[0]
+        ry = deltas[:, :, 1, i] * std[1] + mean[1]
+        rz = deltas[:, :, 2, i] * std[2] + mean[2]
+        rw = deltas[:, :, 3, i] * std[3] + mean[3]
 
-    pred_pose = keras.backend.stack([rx, ry, rz, rw], axis=2)
+        pred_pose = keras.backend.stack([rx, ry, rz, rw], axis=2)
+        pred_pose = keras.backend.expand_dims(pred_pose, axis=3)
+        subTensors.append(pred_pose)
+    pose_cls = keras.backend.concatenate(subTensors, axis=3)
+    print(pose_cls)
 
-    return pred_pose
+    return pose_cls
 
 
 def shift(shape, stride, anchors):

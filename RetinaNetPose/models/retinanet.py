@@ -178,7 +178,7 @@ def default_depth_regression_model(num_values, num_anchors, pyramid_feature_size
     return keras.models.Model(inputs=inputs, outputs=outputs, name=name)
 
 
-def default_rotation_regression_model(num_values, num_anchors, pyramid_feature_size=256, regression_feature_size=256, name='rotation_regression_submodel'):
+def default_rotation_regression_model(num_values, num_anchors, num_classes, pyramid_feature_size=256, regression_feature_size=256, name='rotation_regression_submodel'):
 
     if keras.backend.image_data_format() == 'channels_first':
         inputs  = keras.layers.Input(shape=(pyramid_feature_size, None, None))
@@ -186,12 +186,11 @@ def default_rotation_regression_model(num_values, num_anchors, pyramid_feature_s
         inputs  = keras.layers.Input(shape=(None, None, pyramid_feature_size))
 
     outputs = inputs
-    outputs = keras.layers.Dense(num_anchors * num_values, activation='relu', name='pyramid_rotation_regression_sharedF')(outputs)
-    outputs = keras.layers.Dense(num_anchors * num_values, activation='relu', name='pyramid_rotation_regression_orientationF')(outputs)
+    outputs = keras.layers.Dense(num_anchors * num_values * num_classes, activation='relu', name='pyramid_rotation_regression_sharedF')(outputs)
+    outputs = keras.layers.Dense(num_anchors * num_values * num_classes, activation='relu', name='pyramid_rotation_regression_orientationF')(outputs)
     if keras.backend.image_data_format() == 'channels_first':
         outputs = keras.layers.Permute((2, 3, 1), name='pyramid_regression_permute_ori')(outputs)
-    outputs = keras.layers.Reshape((-1, num_values), name='pyramid_rotation_regression_reshape')(outputs)
-    #print(outputs)
+    outputs = keras.layers.Reshape((-1, num_values, num_classes), name='pyramid_rotation_regression_reshape')(outputs)
     #outputs = keras.layers.Lambda(lambda x: keras.backend.l2_normalize(x, axis=2))(outputs)
     #outputs = keras.layers.Lambda(lambda x: tf.nn.l2_normalize(x, axis=2, epsilon=0.0, name='pyramid_rotation_l2norm'))(outputs)
     outputs = l2_norm(name='rotation_l2_norm')(outputs)
@@ -237,7 +236,7 @@ def default_submodels(num_classes, num_anchors):
         ('bbox', default_regression_model(4, num_anchors)),
         #('xy_reg', default_position_regression_model(2, num_anchors)),
         #('dep_est', default_depth_regression_model(1, num_anchors)),
-        ('rotation', default_rotation_regression_model(4, num_anchors)),
+        ('rotation', default_rotation_regression_model(4, num_anchors, num_classes)),
         ('cls', default_classification_model(num_classes, num_anchors))
     ]
 
