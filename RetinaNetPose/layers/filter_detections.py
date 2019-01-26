@@ -63,11 +63,13 @@ def filter_detections(
     scores              = backend.gather_nd(classification, indices)
     labels              = indices[:, 1]
     scores, top_indices = backend.top_k(scores, k=keras.backend.minimum(max_detections, keras.backend.shape(scores)[0]))
+    scores_rot, top_rot_indices = backend.top_k(scores, k=keras.backend.minimum(max_detections, keras.backend.shape(scores)[0]))
 
     indices             = keras.backend.gather(indices[:, 0], top_indices)
     boxes               = keras.backend.gather(boxes, indices)
     #xy                  = keras.backend.gather(xy, indices)
     #depths           = keras.backend.gather(depths, indices)
+    #rotations = rotations[:, :, labels[0]]
     rotations           = keras.backend.gather(rotations, indices)
     labels              = keras.backend.gather(labels, top_indices)
     other_              = [keras.backend.gather(o, indices) for o in other]
@@ -77,6 +79,7 @@ def filter_detections(
     boxes     = backend.pad(boxes, [[0, pad_size], [0, 0]], constant_values=-1)
     #xy        = backend.pad(xy, [[0, pad_size], [0, 0]], constant_values=-1)
     #depths    = backend.pad(depths, [[0, pad_size], [0, 0]], constant_values=-1)
+    #rotations = backend.pad(rotations, [[0, pad_size], [0, 0], [0, 0]], constant_values=-1)
     rotations = backend.pad(rotations, [[0, pad_size], [0, 0], [0, 0]], constant_values=-1)
     scores    = backend.pad(scores, [[0, pad_size]], constant_values=-1)
     labels    = backend.pad(labels, [[0, pad_size]], constant_values=-1)
@@ -86,7 +89,7 @@ def filter_detections(
     boxes.set_shape([max_detections, 4])
     #xy.set_shape([max_detections, 2])
     #depths.set_shape([max_detections, 1])
-    rotations.set_shape([max_detections, 4, keras.backend.int_shape(rotations)[2]])
+    rotations.set_shape([max_detections, 4, 15])
     scores.set_shape([max_detections])
     labels.set_shape([max_detections])
     for o, s in zip(other_, [list(keras.backend.int_shape(o)) for o in other]):
@@ -160,7 +163,7 @@ class FilterDetections(keras.layers.Layer):
             (input_shape[0][0], self.max_detections, 4),
             #(input_shape[1][0], self.max_detections, 2),
             #(input_shape[2][0], self.max_detections, 1),
-            (input_shape[1][0], self.max_detections, 4),
+            (input_shape[1][0], self.max_detections, 4, 15),
             (input_shape[2][0], self.max_detections),
             (input_shape[2][0], self.max_detections),
         ] + [

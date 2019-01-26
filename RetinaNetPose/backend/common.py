@@ -84,7 +84,6 @@ def rotation_transform_inv(poses, deltas, mean=None, std=None):
         pred_pose = keras.backend.expand_dims(pred_pose, axis=3)
         subTensors.append(pred_pose)
     pose_cls = keras.backend.concatenate(subTensors, axis=3)
-    print(pose_cls)
 
     return pose_cls
 

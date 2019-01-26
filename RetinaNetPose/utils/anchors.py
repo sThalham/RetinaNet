@@ -63,7 +63,7 @@ def anchor_targets_bbox(
     labels_batch      = np.zeros((batch_size, anchors.shape[0], num_classes + 1), dtype=keras.backend.floatx())
     xy_regression_batch  = np.zeros((batch_size, anchors.shape[0], 2 + 1), dtype=keras.backend.floatx())
     depth_regression_batch = np.zeros((batch_size, anchors.shape[0], 1 + 1), dtype=keras.backend.floatx())
-    rotation_regression_batch = np.zeros((batch_size, anchors.shape[0], 4 + 1), dtype=keras.backend.floatx())
+    rotation_regression_batch = np.zeros((batch_size, anchors.shape[0], 4 + 1, num_classes), dtype=keras.backend.floatx())
 
     # compute targets
     for index, (image, annotations) in enumerate(zip(image_group, annotations_group)):
@@ -84,14 +84,14 @@ def anchor_targets_bbox(
             #depth_regression_batch[index, positive_indices, -1] = 1
 
             rotation_regression_batch[index, ignore_indices, -1] = -1
-            rotation_regression_batch[index, positive_indices, -1] = 1
+            rotation_regression_batch[index, positive_indices, -1, :] = 1
 
             # compute target class labels
             labels_batch[index, positive_indices, annotations['labels'][argmax_overlaps_inds[positive_indices]].astype(int)] = 1
             regression_batch[index, :, :-1] = bbox_transform(anchors, annotations['bboxes'][argmax_overlaps_inds, :])
             #xy_regression_batch[index, :, :-1] = xy_transform(anchors, annotations['poses'][argmax_overlaps_inds, :])
             #depth_regression_batch[index, :, :-1] = depth_transform(anchors, annotations['poses'][argmax_overlaps_inds, :])
-            rotation_regression_batch[index, :, :-1] = rotation_transform(anchors, annotations['poses'][argmax_overlaps_inds, :])
+            rotation_regression_batch[index, :, :-1, :] = rotation_transform(anchors, annotations['poses'][argmax_overlaps_inds, :])
 
         if image.shape:
             anchors_centers = np.vstack([(anchors[:, 0] + anchors[:, 2]) / 2, (anchors[:, 1] + anchors[:, 3]) / 2]).T
@@ -101,7 +101,7 @@ def anchor_targets_bbox(
             regression_batch[index, indices, -1] = -1
             #xy_regression_batch[index, indices, -1] = -1
             #depth_regression_batch[index, indices, -1] = -1
-            rotation_regression_batch[index, indices, -1] = -1
+            rotation_regression_batch[index, indices, -1, :] = -1
 
     return regression_batch, rotation_regression_batch, labels_batch
 
@@ -341,15 +341,22 @@ def rotation_transform(anchors, gt_poses, mean=None, std=None):
     elif not isinstance(std, np.ndarray):
         raise ValueError('Expected std to be a np.ndarray, list or tuple. Received: {}'.format(type(std)))
 
-    targets_rx = (gt_poses[:, 3])
-    targets_ry = (gt_poses[:, 4])
-    targets_rz = (gt_poses[:, 5])
-    targets_rw = (gt_poses[:, 6])
+    subTargets = []
+    for i in range(0, 15):
+        targets_rx = (gt_poses[:, 3])
+        targets_ry = (gt_poses[:, 4])
+        targets_rz = (gt_poses[:, 5])
+        targets_rw = (gt_poses[:, 6])
 
-    targets = np.stack((targets_rx, targets_ry, targets_rz, targets_rw))
-    targets = targets.T
+        targets = np.stack((targets_rx, targets_ry, targets_rz, targets_rw))
+        targets = targets.T
 
-    targets = (targets - mean) / std
-    #print('rotation target: ', targets[0, :])
+        targets = (targets - mean) / std
+        targets = np.expand_dims(targets, axis=2)
+        #print(targets)
 
-    return targets
+        subTargets.append(targets)
+
+    poseTargets = np.concatenate(subTargets, axis=2)
+
+    return poseTargets
