@@ -356,7 +356,6 @@ def rotation_transform(anchors, gt_poses, mean=None, std=None):
         #print(targets)
 
         subTargets.append(targets)
-
     poseTargets = np.concatenate(subTargets, axis=2)
 
     return poseTargets
