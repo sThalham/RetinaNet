@@ -170,7 +170,7 @@ class RegressXY(keras.layers.Layer):
         if mean is None:
             mean = [0.0, 0.0]
         if std is None:
-            std = [0.2, 0.2]
+            std = [0.4, 0.4]
 
         if isinstance(mean, (list, tuple)):
             mean = np.array(mean)

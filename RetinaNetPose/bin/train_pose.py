@@ -89,7 +89,7 @@ def create_models(backbone_retinanet, num_classes, weights, multi_gpu=0, freeze_
             'bbox' : losses.smooth_l1(),
             #'xy_reg': losses.smooth_l1(),
             #'dep_est': losses.smooth_l1(),
-            'rotation': losses.weighted_MSE(training_model.inputs),
+            'rotation': losses.weighted_MSE(),
             #'rotation': losses.vec_angle(),
             'cls': losses.focal()
         },

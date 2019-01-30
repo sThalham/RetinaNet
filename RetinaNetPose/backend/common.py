@@ -41,7 +41,7 @@ def xy_transform_inv(poses, deltas, mean=None, std=None):
     if mean is None:
        mean = [0.0, 0.0]
     if std is None:
-        std = [0.2, 0.2]
+        std = [0.4, 0.4]
 
     width = poses[:, :, 2] - poses[:, :, 0]
     height = poses[:, :, 3] - poses[:, :, 1]

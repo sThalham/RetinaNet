@@ -24,8 +24,6 @@ def focal(alpha=0.25, gamma=2.0):
 
     def _focal(y_true, y_pred):
 
-        print(y_true)
-        print(y_pred)
         labels         = y_true[:, :, :-1]
         anchor_state   = y_true[:, :, -1]  # -1 for ignore, 0 for background, 1 for object
         classification = y_pred
@@ -88,28 +86,20 @@ def smooth_l1(sigma=3.0):
     return _smooth_l1
 
 
-def weighted_MSE(gt_data):
+def weighted_MSE(weight=1.0):
 
     def _wMSE(y_true, y_pred):
 
-        #print(gt_data)
-        #gt_classes = gt_data[:, :, :, 2:]
-        #print(keras.backend.argmax(gt_data[:, :, :, 2], axis = 2))
-        #### separate target and state
-        print(y_true)
-        print(y_pred)
         regression        = y_pred
         regression_target = y_true[:, :, :-1, :]
         anchor_state      = y_true[:, :, -1, :]
-        print(anchor_state)
 
         #### filter out "ignore" anchors
         indices           = backend.where(keras.backend.equal(anchor_state, 1))
         regression        = backend.gather_nd(regression, indices)
         regression_target = backend.gather_nd(regression_target, indices)
 
-        #regression_loss = alpha * keras.backend.sqrt(keras.backend.pow(regression[4:6], 2) - keras.backend.pow(regression_target[4:6], 2)) + (1-alpha) * keras.backend.sqrt(keras.backend.pow(regression[0:4], 2) - keras.backend.pow(regression_target[0:4], 2))
-        regression_loss = keras.losses.mean_squared_error(regression, regression_target)
+        regression_loss = weight * keras.losses.mean_squared_error(regression, regression_target)
 
         #### compute the normalizer: the number of positive anchors
         normalizer = keras.backend.maximum(1, keras.backend.shape(indices)[0])
@@ -119,32 +109,40 @@ def weighted_MSE(gt_data):
     return _wMSE
 
 
-def center_loss():
+def smooth_l1_cls():
 
-    def _c_xy(y_true, y_pred, bboxes):
+    def _smooth_l1_cls(y_true, y_pred):
 
         #### separate target and state
         regression        = y_pred
-        regression_target = y_true[:, :, :-1]
-        anchor_state      = y_true[:, :, -1]
+        regression_target = y_true[:, :, :-1, :]
+        anchor_state      = y_true[:, :, -1, :]
 
         #### filter out "ignore" anchors
         indices           = backend.where(keras.backend.equal(anchor_state, 1))
         regression        = backend.gather_nd(regression, indices)
         regression_target = backend.gather_nd(regression_target, indices)
 
-        cx = bboxes[:, :, 0]
-        cy = bboxes[:, :, 1]
-        width = bboxes[:, :, 2] - bboxes[:, :, 0]
-        height = bboxes[:, :, 3] - bboxes[:, :, 1]
+        regression_diff = regression - regression_target
+        regression_diff = keras.backend.abs(regression_diff)
+        regression_loss = backend.where(
+            keras.backend.less(regression_diff, 1.0 / sigma_squared),
+            0.5 * sigma_squared * keras.backend.pow(regression_diff, 2),
+            regression_diff - 0.5 / sigma_squared
+        )
 
-        regression_loss = abs((regression_target[0] - cx)/width - (regression[0] - cx)/width) + abs((regression_target[1] - cy)/height - (regression[1] - cy)/height)
+        #indices = backend.where(keras.backend.equal(anchor_state, 1))
+        #regression = backend.gather_nd(regression, indices)
+        #regression_target = backend.gather_nd(regression_target, indices)
+        #tx = regression_targets[:, :, 0]
+        #ty = regression_targets[:, :, 1]
+        #regression_loss = abs((tx - cx)/width - (regression[0] - cx)/width) + abs((regression_target[1] - cy)/height - (regression[1] - cy)/height)
 
         normalizer = keras.backend.maximum(1, keras.backend.shape(indices)[0])
         normalizer = keras.backend.cast(normalizer, dtype=keras.backend.floatx())
         return keras.backend.sum(regression_loss) / normalizer
 
-    return _c_xy
+    return _smooth_l1_cls
 
 
 def vec_angle():

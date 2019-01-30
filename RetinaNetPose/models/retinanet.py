@@ -178,7 +178,7 @@ def default_depth_regression_model(num_values, num_anchors, pyramid_feature_size
     return keras.models.Model(inputs=inputs, outputs=outputs, name=name)
 
 
-def default_rotation_regression_model(num_values, num_anchors, num_classes, pyramid_feature_size=256, regression_feature_size=256, name='rotation_regression_submodel'):
+def default_pose_regression_model(num_values, num_anchors, num_classes, pyramid_feature_size=256, regression_feature_size=256, name='pose_regression_submodel'):
 
     if keras.backend.image_data_format() == 'channels_first':
         inputs  = keras.layers.Input(shape=(pyramid_feature_size, None, None))
@@ -187,16 +187,30 @@ def default_rotation_regression_model(num_values, num_anchors, num_classes, pyra
 
     outputs = inputs
     outputs = keras.layers.Dense(num_anchors * num_values * num_classes, activation='relu', name='pyramid_rotation_regression_sharedF')(outputs)
-    outputs = keras.layers.Dense(num_anchors * num_values * num_classes, activation='relu', name='pyramid_rotation_regression_orientationF')(outputs)
-    if keras.backend.image_data_format() == 'channels_first':
-        outputs = keras.layers.Permute((2, 3, 1), name='pyramid_regression_permute_ori')(outputs)
-    outputs = keras.layers.Reshape((-1, num_values, num_classes), name='pyramid_depth_regression_reshape')(outputs)
 
-    outputs = l2_norm(name='rotation_l2_norm')(outputs)
+    outputs_xy = keras.layers.Dense(num_anchors * num_values * num_classes, activation='relu',
+                                   name='pyramid_rotation_regression_orientationF')(outputs)
+    if keras.backend.image_data_format() == 'channels_first':
+        outputs_xy = keras.layers.Permute((2, 3, 1), name='pyramid_regression_permute_ori')(outputs_xy)
+        outputs_xy = keras.layers.Reshape((-1, num_values, num_classes), name='pyramid_depth_regression_reshape')(outputs_xy)
+
+    outputs_d = keras.layers.Dense(num_anchors * num_values * num_classes, activation='relu',
+                                   name='pyramid_rotation_regression_orientationF')(outputs)
+    if keras.backend.image_data_format() == 'channels_first':
+        outputs_d = keras.layers.Permute((2, 3, 1), name='pyramid_regression_permute_ori')(outputs_d)
+    outputs_d = keras.layers.Reshape((-1, num_values, num_classes), name='pyramid_depth_regression_reshape')(outputs_d)
+
+    outputs_q = keras.layers.Dense(num_anchors * num_values * num_classes, activation='relu', name='pyramid_rotation_regression_orientationF')(outputs)
+    if keras.backend.image_data_format() == 'channels_first':
+        outputs_q = keras.layers.Permute((2, 3, 1), name='pyramid_regression_permute_ori')(outputs_q)
+    outputs_q = keras.layers.Reshape((-1, num_values, num_classes), name='pyramid_depth_regression_reshape')(outputs_q)
+
+    outputs_q = l2_norm(name='rotation_l2_norm')(outputs_q)
 
     #outputs = keras.layers.Lambda(print_Q)(outputs)
 
-    return keras.models.Model(inputs=inputs, outputs=outputs, name=name)
+    #return keras.models.Model(inputs=inputs, outputs=outputs_xy, name='xy_regression_submodel'), keras.models.Model(inputs=inputs, outputs=outputs_d, name='depth_regression_submodel'), keras.models.Model(inputs=inputs, outputs=outputs_q, name='rotation_regression_submodel')
+    return keras.models.Model(inputs=inputs, outputs=outputs_q, name='rotation_regression_submodel')
 
 
 def __create_pyramid_features(C3, C4, C5, feature_size=256):
@@ -229,15 +243,15 @@ def __create_pyramid_features(C3, C4, C5, feature_size=256):
 
 def default_submodels(num_classes, num_anchors):
 
-    #translations, depth, rotations = default_pose_regression_model(7, num_anchors)
+    #translations, depth, rotations = default_pose_regression_model(7, num_anchors, cls)
 
     return [
         ('bbox', default_regression_model(4, num_anchors)),
-        #('xy_reg', default_position_regression_model(2, num_anchors)),
-        #('dep_est', default_depth_regression_model(1, num_anchors)),
-        ('rotation', default_rotation_regression_model(4, num_anchors, num_classes)),
+        #('xy_reg', translations,
+        #('dep_est', depth,
+        ('rotation', default_pose_regression_model(4,num_anchors, 15)),
         ('cls', default_classification_model(num_classes, num_anchors))
-    ]
+         ]
 
 
 def __build_model_pyramid(name, model, features):
