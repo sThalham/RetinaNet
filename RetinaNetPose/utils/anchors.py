@@ -19,7 +19,6 @@ import keras
 
 from ..utils.compute_overlap import compute_overlap
 
-#np.set_printoptions(threshold=np.nan)
 
 class AnchorParameters:
 
@@ -69,7 +68,10 @@ def anchor_targets_bbox(
     for index, (image, annotations) in enumerate(zip(image_group, annotations_group)):
         if annotations['bboxes'].shape[0]:
             # obtain indices of gt annotations with the greatest overlap
-            positive_indices, ignore_indices, argmax_overlaps_inds = compute_gt_annotations(anchors, annotations['bboxes'], negative_overlap, positive_overlap)
+            positive_indices, ignore_indices, argmax_overlaps_inds, max_overlaps_labels = compute_gt_annotations(anchors, annotations['bboxes'], annotations['labels'], negative_overlap, positive_overlap)
+
+            #batch_gt_labels[index, ignore_indices, -1] = -1
+            #batch_gt_labels[index, positive_indices, -1] = 1
 
             labels_batch[index, ignore_indices, -1]       = -1
             labels_batch[index, positive_indices, -1]     = 1
@@ -83,15 +85,16 @@ def anchor_targets_bbox(
             #depth_regression_batch[index, ignore_indices, -1] = -1
             #depth_regression_batch[index, positive_indices, -1] = 1
 
-            rotation_regression_batch[index, ignore_indices, -1] = -1
-            rotation_regression_batch[index, positive_indices, -1, :] = 1
+            rotation_regression_batch[index, ignore_indices, -1, :] = -1
+            rotation_regression_batch[index, positive_indices, -1, :] = -1
 
             # compute target class labels
             labels_batch[index, positive_indices, annotations['labels'][argmax_overlaps_inds[positive_indices]].astype(int)] = 1
             regression_batch[index, :, :-1] = bbox_transform(anchors, annotations['bboxes'][argmax_overlaps_inds, :])
             #xy_regression_batch[index, :, :-1] = xy_transform(anchors, annotations['poses'][argmax_overlaps_inds, :])
             #depth_regression_batch[index, :, :-1] = depth_transform(anchors, annotations['poses'][argmax_overlaps_inds, :])
-            rotation_regression_batch[index, :, :-1, :] = rotation_transform(anchors, annotations['poses'][argmax_overlaps_inds, :])
+            rotation_regression_batch[index, :, :-1, :] = rotation_transform(anchors, annotations['poses'][argmax_overlaps_inds, :], num_classes)
+            rotation_regression_batch[index, positive_indices, -1, annotations['labels'][argmax_overlaps_inds[positive_indices]].astype(int)-1] = 1
 
         if image.shape:
             anchors_centers = np.vstack([(anchors[:, 0] + anchors[:, 2]) / 2, (anchors[:, 1] + anchors[:, 3]) / 2]).T
@@ -102,6 +105,9 @@ def anchor_targets_bbox(
             #xy_regression_batch[index, indices, -1] = -1
             #depth_regression_batch[index, indices, -1] = -1
             rotation_regression_batch[index, indices, -1, :] = -1
+        #print(regression_batch.shape)
+        #print(rotation_regression_batch.shape)
+        #print(labels_batch.shape)
 
     return regression_batch, rotation_regression_batch, labels_batch
 
@@ -109,18 +115,21 @@ def anchor_targets_bbox(
 def compute_gt_annotations(
     anchors,
     annotations,
+    annotations_labels,
     negative_overlap=0.4,
     positive_overlap=0.5
 ):
 
-    overlaps = compute_overlap(anchors.astype(np.float64), annotations.astype(np.float64))
+    annotations_labels += 1 # so labels start from 1, for now
+    overlaps, overlaps_labels = compute_overlap(anchors.astype(np.float64), annotations.astype(np.float64), annotations_labels.astype(np.uint16))
     argmax_overlaps_inds = np.argmax(overlaps, axis=1)
     max_overlaps = overlaps[np.arange(overlaps.shape[0]), argmax_overlaps_inds]
+    max_overlaps_labels = overlaps_labels[np.arange(overlaps_labels.shape[0]), argmax_overlaps_inds]
 
     positive_indices = max_overlaps >= positive_overlap
     ignore_indices = (max_overlaps > negative_overlap) & ~positive_indices
 
-    return positive_indices, ignore_indices, argmax_overlaps_inds
+    return positive_indices, ignore_indices, argmax_overlaps_inds, max_overlaps_labels
 
 
 def layer_shapes(image_shape, model):
@@ -325,7 +334,7 @@ def depth_transform(anchors, gt_poses, mean=None, std=None):
     return targets
 
 
-def rotation_transform(anchors, gt_poses, mean=None, std=None):
+def rotation_transform(anchors, gt_poses, num_classes, mean=None, std=None):
     if mean is None:
        mean = [0.0, 0.0, 0.0, 0.0]
     if std is None:
@@ -341,21 +350,15 @@ def rotation_transform(anchors, gt_poses, mean=None, std=None):
     elif not isinstance(std, np.ndarray):
         raise ValueError('Expected std to be a np.ndarray, list or tuple. Received: {}'.format(type(std)))
 
-    subTargets = []
-    for i in range(0, 15):
-        targets_rx = (gt_poses[:, 3])
-        targets_ry = (gt_poses[:, 4])
-        targets_rz = (gt_poses[:, 5])
-        targets_rw = (gt_poses[:, 6])
+    targets_rx = (gt_poses[:, 3])
+    targets_ry = (gt_poses[:, 4])
+    targets_rz = (gt_poses[:, 5])
+    targets_rw = (gt_poses[:, 6])
 
-        targets = np.stack((targets_rx, targets_ry, targets_rz, targets_rw))
-        targets = targets.T
+    targets = np.stack((targets_rx, targets_ry, targets_rz, targets_rw))
+    targets = targets.T
 
-        targets = (targets - mean) / std
-        targets = np.expand_dims(targets, axis=2)
-        #print(targets)
+    targets = (targets - mean) / std
+    allTargets = np.repeat(targets[:, :, np.newaxis], num_classes, axis=2)
 
-        subTargets.append(targets)
-    poseTargets = np.concatenate(subTargets, axis=2)
-
-    return poseTargets
+    return allTargets

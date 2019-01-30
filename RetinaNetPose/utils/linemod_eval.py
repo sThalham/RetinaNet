@@ -72,7 +72,7 @@ def evaluate_linemod(generator, model, threshold=0.05):
                 'category_id' : generator.label_to_inv_label(label),
                 'score'       : float(score),
                 'bbox'        : box.tolist(),
-                'pose'        : quat[:,cls].tolist()
+                'pose'        : quat.tolist()
             }
 
             # append detection to results

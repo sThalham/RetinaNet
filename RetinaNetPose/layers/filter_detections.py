@@ -71,9 +71,10 @@ def filter_detections(
     #xy                  = keras.backend.gather(xy, indices)
     #depths           = keras.backend.gather(depths, indices)
     #rotations = rotations[:, :, labels[0]]
+    #rotations = rotations[]
     rotations           = keras.backend.gather(rotations, indices)
     labels              = keras.backend.gather(labels, top_indices)
-    rotations = rotations[:, :, labels[0]]
+    #rotations = rotations[:, :, labels[0]]
     other_              = [keras.backend.gather(o, indices) for o in other]
 
     # zero padding
@@ -82,7 +83,7 @@ def filter_detections(
     #xy        = backend.pad(xy, [[0, pad_size], [0, 0]], constant_values=-1)
     #depths    = backend.pad(depths, [[0, pad_size], [0, 0]], constant_values=-1)
     #rotations = backend.pad(rotations, [[0, pad_size], [0, 0], [0, 0]], constant_values=-1)
-    rotations = backend.pad(rotations, [[0, pad_size], [0, 0]], constant_values=-1)
+    rotations = backend.pad(rotations, [[0, pad_size], [0, 0], [0, 0]], constant_values=-1)
     scores    = backend.pad(scores, [[0, pad_size]], constant_values=-1)
     labels    = backend.pad(labels, [[0, pad_size]], constant_values=-1)
     labels    = keras.backend.cast(labels, 'int32')
@@ -91,7 +92,7 @@ def filter_detections(
     boxes.set_shape([max_detections, 4])
     #xy.set_shape([max_detections, 2])
     #depths.set_shape([max_detections, 1])
-    rotations.set_shape([max_detections, 4])
+    rotations.set_shape([max_detections, 4, 15])
     scores.set_shape([max_detections])
     labels.set_shape([max_detections])
     for o, s in zip(other_, [list(keras.backend.int_shape(o)) for o in other]):
@@ -147,7 +148,7 @@ class FilterDetections(keras.layers.Layer):
                 class_specific_filter = self.class_specific_filter,
                 score_threshold       = self.score_threshold,
                 max_detections        = self.max_detections,
-                nms_threshold         = self.nms_threshold,
+                nms_threshold         = self.nms_threshold
             )
 
         # call filter_detections on each batch

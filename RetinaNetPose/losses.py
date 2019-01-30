@@ -24,6 +24,8 @@ def focal(alpha=0.25, gamma=2.0):
 
     def _focal(y_true, y_pred):
 
+        print(y_true)
+        print(y_pred)
         labels         = y_true[:, :, :-1]
         anchor_state   = y_true[:, :, -1]  # -1 for ignore, 0 for background, 1 for object
         classification = y_pred
@@ -86,14 +88,20 @@ def smooth_l1(sigma=3.0):
     return _smooth_l1
 
 
-def weighted_MSE(alpha=0.7):
+def weighted_MSE(gt_data):
 
     def _wMSE(y_true, y_pred):
 
+        #print(gt_data)
+        #gt_classes = gt_data[:, :, :, 2:]
+        #print(keras.backend.argmax(gt_data[:, :, :, 2], axis = 2))
         #### separate target and state
+        print(y_true)
+        print(y_pred)
         regression        = y_pred
-        regression_target = y_true[:, :, :-1]
-        anchor_state      = y_true[:, :, -1]
+        regression_target = y_true[:, :, :-1, :]
+        anchor_state      = y_true[:, :, -1, :]
+        print(anchor_state)
 
         #### filter out "ignore" anchors
         indices           = backend.where(keras.backend.equal(anchor_state, 1))

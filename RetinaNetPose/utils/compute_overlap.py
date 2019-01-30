@@ -8,11 +8,12 @@
 import numpy as np
 
 
-def compute_overlap(boxes, query_boxes):
+def compute_overlap(boxes, query_boxes, query_labels):
     """
     Args
         a: (N, 4) ndarray of float
         b: (K, 4) ndarray of float
+        c: (K,) ndarray of uint8
 
     Returns
         overlaps: (N, K) ndarray of overlap between boxes and query_boxes
@@ -20,6 +21,7 @@ def compute_overlap(boxes, query_boxes):
     N = boxes.shape[0]
     K = query_boxes.shape[0]
     overlaps = np.zeros((N, K), dtype=np.float64)
+    overlaps_labels = np.zeros((N, K), dtype=np.uint16)
 
     for k in range(K):
         box_area = (
@@ -43,4 +45,5 @@ def compute_overlap(boxes, query_boxes):
                         box_area - iw * ih
                     )
                     overlaps[n, k] = iw * ih / ua
-    return overlaps
+                    overlaps_labels[n, k] = query_labels[k]
+    return overlaps, overlaps_labels

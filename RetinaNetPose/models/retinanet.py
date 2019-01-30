@@ -190,9 +190,8 @@ def default_rotation_regression_model(num_values, num_anchors, num_classes, pyra
     outputs = keras.layers.Dense(num_anchors * num_values * num_classes, activation='relu', name='pyramid_rotation_regression_orientationF')(outputs)
     if keras.backend.image_data_format() == 'channels_first':
         outputs = keras.layers.Permute((2, 3, 1), name='pyramid_regression_permute_ori')(outputs)
-    outputs = keras.layers.Reshape((-1, num_values, num_classes), name='pyramid_rotation_regression_reshape')(outputs)
-    #outputs = keras.layers.Lambda(lambda x: keras.backend.l2_normalize(x, axis=2))(outputs)
-    #outputs = keras.layers.Lambda(lambda x: tf.nn.l2_normalize(x, axis=2, epsilon=0.0, name='pyramid_rotation_l2norm'))(outputs)
+    outputs = keras.layers.Reshape((-1, num_values, num_classes), name='pyramid_depth_regression_reshape')(outputs)
+
     outputs = l2_norm(name='rotation_l2_norm')(outputs)
 
     #outputs = keras.layers.Lambda(print_Q)(outputs)
@@ -323,6 +322,8 @@ def retinanet_bbox(
     #xy = layers.ClipXY(name='clipped_xy')([model.inputs[0], xy])
     #depths = layers.RegressDepths(name='depths')([anchors, depth_regression])
     rotations = layers.RegressRotation(name='rotations')([anchors, orientation_regression])
+
+    #print(model.inputs)
 
     detections = layers.FilterDetections(nms=nms, class_specific_filter=class_specific_filter,
                                          name='filtered_detections')([boxes, rotations, classification] + other)
