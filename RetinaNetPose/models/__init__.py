@@ -21,7 +21,7 @@ class Backbone(object):
             'Anchors'          : layers.Anchors,
             'ClipBoxes'        : layers.ClipBoxes,
             '_smooth_l1'       : losses.smooth_l1(),
-            #'_wMSE': losses.weighted_MSE(gt_data),
+            '_wMSE'            : losses.weighted_MSE(),
             '_focal'           : losses.focal(),
             'l2_norm': retinanet.l2_norm,
         }

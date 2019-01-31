@@ -186,7 +186,7 @@ def default_pose_regression_model(num_values, num_anchors, num_classes, pyramid_
         inputs  = keras.layers.Input(shape=(None, None, pyramid_feature_size))
 
     outputs = inputs
-    outputs = keras.layers.Dense(num_anchors * num_values * num_classes, activation='relu', name='pyramid_rotation_regression_sharedF')(outputs)
+    outputs = keras.layers.Dense(num_anchors * num_values * num_classes, name='pyramid_rotation_regression_sharedF')(outputs)
 
     outputs_xy = keras.layers.Dense(num_anchors * num_values * num_classes, activation='relu',
                                    name='pyramid_rotation_regression_orientationF')(outputs)
@@ -200,12 +200,12 @@ def default_pose_regression_model(num_values, num_anchors, num_classes, pyramid_
         outputs_d = keras.layers.Permute((2, 3, 1), name='pyramid_regression_permute_ori')(outputs_d)
     outputs_d = keras.layers.Reshape((-1, num_values, num_classes), name='pyramid_depth_regression_reshape')(outputs_d)
 
-    outputs_q = keras.layers.Dense(num_anchors * num_values * num_classes, activation='relu', name='pyramid_rotation_regression_orientationF')(outputs)
+    outputs_q = keras.layers.Dense(num_anchors * num_values * num_classes, name='pyramid_rotation_regression_orientationF')(outputs)
     if keras.backend.image_data_format() == 'channels_first':
         outputs_q = keras.layers.Permute((2, 3, 1), name='pyramid_regression_permute_ori')(outputs_q)
     outputs_q = keras.layers.Reshape((-1, num_values, num_classes), name='pyramid_depth_regression_reshape')(outputs_q)
 
-    outputs_q = l2_norm(name='rotation_l2_norm')(outputs_q)
+    #outputs_q = l2_norm(name='rotation_l2_norm')(outputs_q)
 
     #outputs = keras.layers.Lambda(print_Q)(outputs)
 

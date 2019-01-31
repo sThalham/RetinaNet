@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from pycocotools.cocoeval import COCOeval
+#from pycocotools.cocoeval import COCOeval
 
 import keras
 import numpy as np
@@ -22,6 +22,40 @@ import json
 
 import progressbar
 assert(callable(progressbar.progressbar)), "Using wrong progressbar module, install 'progressbar2' instead."
+
+
+def load_true_anno(generator, images):
+    #annotations = generator.load_annotations(id)
+    val_annos = []
+    for id in images:
+        val_annos.append(generator.load_annotations(int(id)))
+
+    return val_annos
+
+
+def boxoverlap(a, b):
+    a = np.array([a[0], a[1], a[0] + a[2], a[1] + a[3]])
+    b = np.array([b[0], b[1], b[0] + b[2], b[1] + b[3]])
+
+    x1 = np.amax(np.array([a[0], b[0]]))
+    y1 = np.amax(np.array([a[1], b[1]]))
+    x2 = np.amin(np.array([a[2], b[2]]))
+    y2 = np.amin(np.array([a[3], b[3]]))
+
+    wid = x2-x1+1
+    hei = y2-y1+1
+    inter = wid * hei
+    aarea = (a[2] - a[0] + 1) * (a[3] - a[1] + 1)
+    barea = (b[2] - b[0] + 1) * (b[3] - b[1] + 1)
+    # intersection over union overlap
+    ovlap = inter / (aarea + barea - inter)
+    # set invalid entries to 0 overlap
+    maskwid = wid <= 0
+    maskhei = hei <= 0
+    np.where(ovlap, maskwid, 0)
+    np.where(ovlap, maskhei, 0)
+
+    return ovlap
 
 
 def evaluate_linemod(generator, model, threshold=0.05):
@@ -35,7 +69,13 @@ def evaluate_linemod(generator, model, threshold=0.05):
     # start collecting results
     results = []
     image_ids = []
+    image_idx = []
+    idx = 0
     for index in progressbar.progressbar(range(generator.size()), prefix='COCO evaluation: '):
+
+        #if len(image_ids) > 50:
+        #    continue
+
         image = generator.load_image(index)
         image = generator.preprocess_image(image)
         image, scale = generator.resize_image(image)
@@ -45,10 +85,10 @@ def evaluate_linemod(generator, model, threshold=0.05):
 
         # run network
         boxes, quats, scores, labels = model.predict_on_batch(np.expand_dims(image, axis=0))
-        #print('boxes: ', boxes)
+        #print('boxes: ', boxes.shape)
         #print('boxes[0]', boxes[0])
         #print('quats: ', quats.shape)
-        #print('scores: ', scores)
+        #print('labels: ', scores.shape)
         #print('labels: ', labels[0])
 
         # correct boxes for image scale
@@ -72,7 +112,7 @@ def evaluate_linemod(generator, model, threshold=0.05):
                 'category_id' : generator.label_to_inv_label(label),
                 'score'       : float(score),
                 'bbox'        : box.tolist(),
-                'pose'        : quat.tolist()
+                'pose'        : quat[:, (cls-1)].tolist()
             }
 
             # append detection to results
@@ -80,15 +120,35 @@ def evaluate_linemod(generator, model, threshold=0.05):
 
         # append image to list of processed images
         image_ids.append(generator.image_ids[index])
+        image_idx.append(idx)
+        idx += 1
 
     if not len(results):
         return
 
     # write output
     json.dump(results, open('{}_bbox_results.json'.format(generator.set_name), 'w'), indent=4)
-    json.dump(image_ids, open('{}_processed_image_ids.json'.format(generator.set_name), 'w'), indent=4)
+    #json.dump(image_ids, open('{}_processed_image_ids.json'.format(generator.set_name), 'w'), indent=4)
 
     # load results in COCO evaluation tool
+    ann_true = load_true_anno(generator, image_idx)
+
+    tp = []
+    tn = []
+    fn = []
+    for i, gt in enumerate(ann_true):
+
+        #print('gt: ', gt['labels'])
+
+        pred = results['image_id'== image_ids[i]]
+        cat_ind = pred['category_id'] == gt['labels']
+        print(cat_ind)
+        if not bool(cat_ind):
+            fn.append(int(gt['labels']))
+        else:
+            print('else')
+
+
     coco_true = generator.coco
     coco_pred = coco_true.loadRes('{}_bbox_results.json'.format(generator.set_name))
 
